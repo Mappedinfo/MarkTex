@@ -1,0 +1,66 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.divider {
+  width: 1px;
+  background: #e2e8f0;
+  cursor: col-resize;
+  transition: background 0.2s;
+}
+
+.divider:hover {
+  background: #2563eb;
+}
+
+.notification {
+  position: fixed;
+  top: 5rem;
+  right: 2rem;
+  padding: 1rem 1.5rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  font-size: 0.875rem;
+  z-index: 200;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(calc(100% + 2rem));
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.notification-success {
+  background: #f0fdf4;
+  border-color: #10b981;
+  color: #166534;
+}
+
+.notification-error {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
+.notification-info {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
