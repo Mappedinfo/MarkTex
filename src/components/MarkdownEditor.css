@@ -29,6 +29,36 @@
   color: #64748b;
 }
 
+/* 字数统计样式 */
+.editor-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.stat-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  background: white;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  cursor: help;
+  transition: all 0.2s;
+}
+
+.stat-item:hover {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.stat-separator {
+  color: #cbd5e1;
+  font-weight: 300;
+}
+
 .editor-body,
 .preview-body {
   flex: 1;
