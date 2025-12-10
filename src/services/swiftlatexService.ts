@@ -5,6 +5,7 @@
  */
 
 import type { CompileConfig, CompileResult, CompilationProgress, EngineStatus, FontStatus } from '../types';
+import { formatFileService } from './formatFileService';
 
 // SwiftLaTeX 引擎声明
 declare global {
@@ -39,8 +40,9 @@ export class SwiftLaTeXService {
   
   // 默认配置
   private config: EngineConfig = {
-    // 使用 XeTeX 引擎（支持中文和 Unicode）+ dvipdfmx（XDV 转 PDF）
-    engineUrl: '/swiftlatex/SwiftLaTeX-20022022/xetex.wasm/XeTeXEngine.js',
+    // 临时使用 PdfTeX 引擎测试（不支持中文，但更稳定）
+    // TODO: 修复 XeTeX 引擎的格式文件问题后切换回来
+    engineUrl: '/swiftlatex/SwiftLaTeX-20022022/pdftex.wasm/PdfTeXEngine.js',
     fontCdn: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-cjk@main/Sans/OTF/SimplifiedChinese',
     maxCompileTime: 30000,
     enableCache: true,
@@ -56,9 +58,8 @@ export class SwiftLaTeXService {
    * 检查引擎是否已加载
    */
   isEngineLoaded(): boolean {
-    // 检查 XeTeX 是否已加载
-    // 注意: dvipdfmx 引擎缺失编译文件,但我们可以先加载 XeTeX
-    return typeof window.XeTeXEngine !== 'undefined';
+    // 检查 PdfTeX 或 XeTeX 是否已加载
+    return typeof window.PdfTeXEngine !== 'undefined' || typeof window.XeTeXEngine !== 'undefined';
   }
 
   /**
@@ -220,12 +221,17 @@ export class SwiftLaTeXService {
         message: '正在初始化引擎实例...',
       });
 
-      // 创建 XeTeX 引擎实例
-      if (typeof window.XeTeXEngine !== 'undefined') {
+      // 创建引擎实例（优先 PdfTeX，其次 XeTeX）
+      if (typeof window.PdfTeXEngine !== 'undefined') {
+        this.engine = new window.PdfTeXEngine();
+        console.log('使用 PdfTeX 引擎');
+        console.log('PdfTeX 引擎实例:', this.engine);
+      } else if (typeof window.XeTeXEngine !== 'undefined') {
         this.engine = new window.XeTeXEngine();
         console.log('使用 XeTeX 引擎');
+        console.log('XeTeX 引擎实例:', this.engine);
       } else {
-        throw new Error('未找到 XeTeX 引擎');
+        throw new Error('未找到可用的 LaTeX 引擎');
       }
       
       // 创建 DvipdfmxEngine 实例 (如果可用)
@@ -238,9 +244,14 @@ export class SwiftLaTeXService {
       }
       
       // 加载引擎
+      console.log('🔧 开始加载 XeTeX 引擎...');
       await this.engine.loadEngine();
+      console.log('✅ XeTeX 引擎 loadEngine 完成');
+      
       if (this.dvipdfmEngine) {
+        console.log('🔧 开始加载 DvipdfmxEngine...');
         await this.dvipdfmEngine.loadEngine();
+        console.log('✅ DvipdfmxEngine loadEngine 完成');
       }
 
       // 检查引擎是否就绪
@@ -258,6 +269,22 @@ export class SwiftLaTeXService {
         ? 'XeTeX + DvipdfmxEngine' 
         : 'XeTeX 单独模式 (仅生成 XDV)';
       console.log(`✅ ${engineInfo} 引擎实例初始化成功`);
+      
+      // 🔧 生成格式文件（首次初始化时）
+      console.log('🔧 开始生成格式文件...');
+      this.emitProgress({
+        stage: 'engine-loading',
+        progress: 35,
+        message: '正在生成格式文件...',
+      });
+      
+      try {
+        await this.engine.compileFormat();
+        console.log('✅ 格式文件生成成功');
+      } catch (formatError) {
+        console.warn('⚠️ 格式文件生成失败，尝试继续:', formatError);
+        // 即使格式文件生成失败，也继续初始化
+      }
       
       this.emitProgress({
         stage: 'engine-loading',
@@ -337,6 +364,31 @@ export class SwiftLaTeXService {
   }
 
   /**
+   * 生成格式文件（首次初始化时调用）
+   * 注意：由于 Worker 的限制，这个功能目前难以实现
+   * 我们需要预先生成格式文件并部署到项目中
+   */
+  async generateFormatFile(): Promise<boolean> {
+    if (!this.engine) {
+      throw new Error('引擎未初始化');
+    }
+
+    try {
+      console.log('🔧 开始生成格式文件...');
+      console.warn('⚠️ 此功能尚未完全实现，需要预先生成格式文件');
+      
+      // 调用引擎的 compileFormat 方法
+      await this.engine.compileFormat();
+      
+      console.log('✅ 格式文件生成完成（但需要手动导出）');
+      return true;
+    } catch (error) {
+      console.error('❌ 格式文件生成失败:', error);
+      return false;
+    }
+  }
+
+  /**
    * 编译 LaTeX 源码为 PDF
    */
   async compile(latexContent: string, _config?: Partial<CompileConfig>): Promise<CompileResult> {
@@ -363,6 +415,17 @@ export class SwiftLaTeXService {
       // 写入主 LaTeX 文件
       console.log('📝 写入 LaTeX 源文件...');
       console.log('LaTeX 内容预览:', latexContent.substring(0, 500));
+      
+      // 测试：先尝试编译一个最简单的文档
+      const testSimple = true; // 设置为 true 来测试最简单的文档
+      if (testSimple) {
+        console.log('⚠️ 使用简化测试文档');
+        latexContent = `\\documentclass{article}
+\\begin{document}
+Hello World
+\\end{document}`;
+      }
+      
       this.engine.writeMemFSFile('main.tex', latexContent);
       await new Promise(resolve => setTimeout(resolve, 100));
       
@@ -383,17 +446,30 @@ export class SwiftLaTeXService {
         status: result.status,
         hasLog: !!result.log,
         hasPdf: !!result.pdf,
-        logLength: result.log?.length || 0
+        logLength: result.log?.length || 0,
+        pdfLength: result.pdf?.length || 0
       });
+      
+      // 输出详细的编译日志
+      if (result.log) {
+        console.log('📜 编译日志详情:');
+        console.log(result.log);
+      } else {
+        console.warn('⚠️ 没有编译日志输出！');
+      }
 
       this.emitProgress({
         stage: 'generating-pdf',
         progress: 70,
-        message: '正在将 XDV 转换为 PDF...',
+        message: '正在生成 PDF...',
       });
 
+      // 检查是否使用 XeTeX（需要 dvipdfmx 转换）
+      const isXeTeX = typeof window.XeTeXEngine !== 'undefined' && 
+                      this.engine.constructor.name === 'XeTeXEngine';
+
       // XeTeX 生成的是 XDV 文件,需要用 dvipdfmx 转换为 PDF
-      if (result.status === 0 && result.pdf) {
+      if (isXeTeX && result.status === 0 && result.pdf) {
         console.log('🔄 XeTeX 编译成功,开始转换 XDV 到 PDF...');
         
         // 检查 dvipdfmx 引擎是否可用
@@ -462,6 +538,20 @@ ${pdfResult.log || ''}`,
             error: `XDV 转 PDF 失败 (状态码: ${pdfResult.status})`,
           };
         }
+      } else if (result.status === 0 && result.pdf) {
+        // PdfTeX 直接生成 PDF
+        console.log('✅ PDF 生成成功 (PdfTeX)');
+        this.emitProgress({
+          stage: 'complete',
+          progress: 100,
+          message: '编译完成',
+        });
+
+        return {
+          success: true,
+          pdf: result.pdf,
+          log: result.log || '',
+        };
       } else {
         console.error('❌ 编译失败,未生成 XDV');
         console.error('编译状态码:', result.status);

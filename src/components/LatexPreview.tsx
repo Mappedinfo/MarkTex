@@ -72,15 +72,21 @@ export function LatexPreview() {
         console.error('❌ 编译失败:', errorMessage);
         console.log('编译日志:', result.log);
         
-        // 显示 LaTeX 源码前 30 行以便调试
-        const sourcePreview = latexOutput.split('\n').slice(0, 30).join('\n');
-        setCompileError(`${errorMessage}
+        // SwiftLaTeX 引擎需要格式文件，目前暂不可用
+        setCompileError(`⚠️ PDF 预览功能暂时不可用
 
-编译日志:
-${result.log || '无日志信息'}
+SwiftLaTeX 引擎需要预编译的格式文件（.fmt）才能运行。
 
-LaTeX 源码预览（前30行）:
-${sourcePreview}`);
+请使用以下替代方案：
+1. 点击“导出 LaTeX”按钮获取 .tex 源文件
+2. 在本地使用 XeLaTeX 编译（已安装 TeX Live 或 MiKTeX）
+3. 或使用在线 LaTeX 编辑器（如 Overleaf）
+
+技术详情：
+${errorMessage}
+
+编译日志：
+${result.log || '无日志信息'}`);
       }
     } catch (error: any) {
       console.error('❌ 编译过程出错:', error);

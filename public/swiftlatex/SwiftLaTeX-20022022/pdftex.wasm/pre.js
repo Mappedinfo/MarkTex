@@ -108,8 +108,8 @@ Module['onAbort'] = function() {
 
 function compileLaTeXRoutine() {
     prepareExecutionContext();
-    const setMainFunction = cwrap('setMainEntry', 'number', ['string']);
-    setMainFunction(self.mainfile);
+    // 直接使用 _setMainEntry 而不是 cwrap
+    _setMainEntry(self.mainfile);
     let status = _compileLaTeX();
     if (status === 0) {
         let pdfArrayBuffer = null;
