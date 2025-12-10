@@ -1,47 +1,55 @@
 name: Deploy to GitHub Pages
 
 on:
+  # 当推送到 main 分支时触发
   push:
     branches:
       - main
+  
+  # 允许手动触发
   workflow_dispatch:
 
+# 设置 GITHUB_TOKEN 的权限，允许部署到 GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# 只允许一个并发部署，跳过在进行中的运行和最新排队的运行之间排队的运行
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
+  # 构建任务
   build:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout
+      - name: Checkout 代码
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
+      - name: 设置 Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
       
-      - name: Install dependencies
+      - name: 安装依赖
         run: npm ci
       
-      - name: Build
+      - name: 构建项目
         run: npm run build
-        env:
-          NODE_ENV: production
       
-      - name: Upload artifact
+      - name: 配置 GitHub Pages
+        uses: actions/configure-pages@v4
+      
+      - name: 上传构建产物
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
-
+          path: './dist'
+  
+  # 部署任务
   deploy:
     environment:
       name: github-pages
@@ -51,6 +59,6 @@ jobs:
     needs: build
     
     steps:
-      - name: Deploy to GitHub Pages
+      - name: 部署到 GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
