@@ -2,13 +2,10 @@
  * LaTeX 预览组件
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useAppStore } from '../stores/appStore';
-import { PdfCompileService } from '../services/pdfCompileService';
-import { frontendPdfService } from '../services/frontendPdfService';
+import { swiftlatexService } from '../services/swiftlatexService';
 import './MarkdownEditor.css';
-
-const pdfService = new PdfCompileService();
 
 export function LatexPreview() {
   const {
@@ -21,68 +18,77 @@ export function LatexPreview() {
     setPdfUrl,
     isCompiling,
     setIsCompiling,
+    engineStatus,
+    setEngineStatus,
+    compilationStage,
+    setCompilationStage,
+    compilationProgress,
+    setCompilationProgress,
   } = useAppStore();
 
-  const [serverAvailable, setServerAvailable] = useState(false);
-  const [compilationMode, setCompilationMode] = useState<'frontend' | 'backend' | null>(null);
-
-  // 检查后端服务是否可用
+  // 设置进度监听器
   useEffect(() => {
-    pdfService.checkHealth().then(setServerAvailable);
-  }, []);
+    const unsubscribe = swiftlatexService.onProgress((progress) => {
+      setCompilationStage(progress.stage);
+      setCompilationProgress(progress.progress);
+    });
 
-  // 编译 PDF（双模式：优先前端，失败则尝试后端）
+    return unsubscribe;
+  }, [setCompilationStage, setCompilationProgress]);
+
+  // 编译 PDF（使用 SwiftLaTeX 纯前端编译）
   const handleCompilePdf = async () => {
     if (!latexOutput) return;
 
     setIsCompiling(true);
     setCompileError(null);
-    setCompilationMode(null);
+    setCompilationStage('idle');
+    setCompilationProgress(0);
 
     // 清理旧的 PDF URL
     if (pdfUrl) {
-      if (pdfUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(pdfUrl);
-      } else {
-        pdfService.revokePdfUrl(pdfUrl);
-      }
+      URL.revokeObjectURL(pdfUrl);
       setPdfUrl(null);
     }
 
     try {
-      // 尝试前端编译
-      console.log('🎯 尝试使用前端 WebAssembly 编译...');
-      setCompilationMode('frontend');
+      console.log('🎯 开始使用 SwiftLaTeX 编译...');
       
-      const pdfDataUrl = await frontendPdfService.compile(latexOutput);
-      const url = frontendPdfService.createPdfUrl(pdfDataUrl);
-      setPdfUrl(url);
-      console.log('✅ 前端编译成功');
-    } catch (frontendError: any) {
-      console.warn('⚠️ 前端编译失败:', frontendError.message);
+      // 更新引擎状态
+      const currentStatus = swiftlatexService.getEngineStatus();
+      setEngineStatus(currentStatus);
       
-      // 如果后端服务可用，尝试后端编译
-      if (serverAvailable) {
-        try {
-          console.log('🔄 切换到后端编译...');
-          setCompilationMode('backend');
-          const pdfBlob = await pdfService.compileToPdf(latexOutput);
-          const url = pdfService.createPdfUrl(pdfBlob);
-          setPdfUrl(url);
-          console.log('✅ 后端编译成功');
-        } catch (backendError: any) {
-          console.error('❌ 后端编译也失败:', backendError.message);
-          setCompileError(
-            `前端编译失败: ${frontendError.message}\n\n后端编译失败: ${backendError.message}`
-          );
-        }
+      // 执行编译
+      const result = await swiftlatexService.compile(latexOutput);
+      
+      if (result.success && result.pdf) {
+        const url = swiftlatexService.createPdfUrl(result.pdf);
+        setPdfUrl(url);
+        console.log('✅ SwiftLaTeX 编译成功');
+        setEngineStatus('ready');
+        setCompileError(null); // 清除错误
       } else {
-        setCompileError(
-          `前端编译失败: ${frontendError.message}\n\n提示: 后端服务不可用，无法尝试备用编译方案`
-        );
+        const errorMessage = result.error || '编译失败';
+        console.error('❌ 编译失败:', errorMessage);
+        console.log('编译日志:', result.log);
+        
+        // 显示 LaTeX 源码前 30 行以便调试
+        const sourcePreview = latexOutput.split('\n').slice(0, 30).join('\n');
+        setCompileError(`${errorMessage}
+
+编译日志:
+${result.log || '无日志信息'}
+
+LaTeX 源码预览（前30行）:
+${sourcePreview}`);
       }
+    } catch (error: any) {
+      console.error('❌ 编译过程出错:', error);
+      setCompileError(`编译失败: ${error.message}`);
+      setEngineStatus('error');
     } finally {
       setIsCompiling(false);
+      setCompilationStage('idle');
     }
   };
 
@@ -97,11 +103,7 @@ export function LatexPreview() {
   useEffect(() => {
     return () => {
       if (pdfUrl) {
-        if (pdfUrl.startsWith('blob:')) {
-          URL.revokeObjectURL(pdfUrl);
-        } else {
-          pdfService.revokePdfUrl(pdfUrl);
-        }
+        URL.revokeObjectURL(pdfUrl);
       }
     };
   }, [pdfUrl]);
@@ -122,16 +124,16 @@ export function LatexPreview() {
             <button
               className={`mode-btn ${previewMode === 'pdf' ? 'active' : ''}`}
               onClick={() => setPreviewMode('pdf')}
-              title="PDF 预览（优先使用前端编译）"
+              title="PDF 预览（纯前端 SwiftLaTeX 编译）"
             >
               PDF
             </button>
           </div>
           <span className="preview-info">
             {latexOutput.split('\n').length} 行
-            {compilationMode && (
-              <span className="compilation-mode">
-                {' '}| {compilationMode === 'frontend' ? '🌐 前端编译' : '🖥️ 后端编译'}
+            {engineStatus !== 'unloaded' && (
+              <span className="engine-status">
+                {' '}| 🌐 {engineStatus === 'ready' ? '引擎就绪' : engineStatus === 'loading' ? '加载中...' : engineStatus === 'error' ? '引擎错误' : '未加载'}
               </span>
             )}
           </span>
@@ -159,7 +161,19 @@ export function LatexPreview() {
                 <div className="placeholder-content">
                   <div className="loading-spinner"></div>
                   <h3>正在编译 PDF...</h3>
-                  <p>请稍候，这可能需要几秒钟</p>
+                  <p>{compilationStage === 'engine-loading' && '加载编译引擎...'}</p>
+                  <p>{compilationStage === 'font-loading' && '加载中文字体...'}</p>
+                  <p>{compilationStage === 'file-preparing' && '准备源文件...'}</p>
+                  <p>{compilationStage === 'compiling' && '正在编译文档...'}</p>
+                  <p>{compilationStage === 'generating-pdf' && '生成 PDF 文件...'}</p>
+                  {compilationProgress > 0 && (
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-fill" 
+                        style={{ width: `${compilationProgress}%` }}
+                      ></div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : pdfUrl ? (

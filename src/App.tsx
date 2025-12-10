@@ -17,7 +17,7 @@ let renderer: LatexRenderer | null = null;
 const docGenerator = new DocumentGenerator();
 
 function App() {
-  const { markdownContent, config, setLatexOutput, notification, hideNotification } = useAppStore();
+  const { markdownContent, config, setLatexOutput, notification } = useAppStore();
 
   // 初始化渲染器
   useEffect(() => {

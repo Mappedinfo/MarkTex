@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import type { AppConfig } from '../types';
+import type { AppConfig, EngineStatus, CompilationStage, FontStatus } from '../types';
 
 interface AppState {
   // Markdown 内容
@@ -34,6 +34,22 @@ interface AppState {
   // 编译状态
   isCompiling: boolean;
   setIsCompiling: (compiling: boolean) => void;
+
+  // 引擎状态
+  engineStatus: EngineStatus;
+  setEngineStatus: (status: EngineStatus) => void;
+
+  // 编译阶段
+  compilationStage: CompilationStage;
+  setCompilationStage: (stage: CompilationStage) => void;
+
+  // 编译进度
+  compilationProgress: number;
+  setCompilationProgress: (progress: number) => void;
+
+  // 字体加载状态
+  fontLoadStatus: FontStatus;
+  setFontLoadStatus: (status: FontStatus) => void;
 
   // UI 状态
   isSettingsPanelOpen: boolean;
@@ -110,6 +126,22 @@ def hello_world():
   // 编译状态
   isCompiling: false,
   setIsCompiling: (compiling) => set({ isCompiling: compiling }),
+
+  // 引擎状态
+  engineStatus: 'unloaded',
+  setEngineStatus: (status) => set({ engineStatus: status }),
+
+  // 编译阶段
+  compilationStage: 'idle',
+  setCompilationStage: (stage) => set({ compilationStage: stage }),
+
+  // 编译进度
+  compilationProgress: 0,
+  setCompilationProgress: (progress) => set({ compilationProgress: progress }),
+
+  // 字体加载状态
+  fontLoadStatus: {},
+  setFontLoadStatus: (status) => set({ fontLoadStatus: status }),
 
   // 默认配置
   config: {

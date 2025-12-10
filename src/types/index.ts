@@ -52,3 +52,45 @@ export interface LatexRenderResult {
   hasCode: boolean;
   hasMath: boolean;
 }
+
+// 引擎状态
+export type EngineStatus = 'unloaded' | 'loading' | 'ready' | 'error';
+
+// 编译阶段
+export type CompilationStage = 
+  | 'idle'
+  | 'engine-loading'
+  | 'font-loading'
+  | 'file-preparing'
+  | 'compiling'
+  | 'generating-pdf'
+  | 'complete'
+  | 'error';
+
+// 字体加载状态
+export interface FontStatus {
+  [fontName: string]: 'pending' | 'loading' | 'loaded' | 'error';
+}
+
+// 编译配置
+export interface CompileConfig {
+  engineCommand: 'xelatex' | 'pdflatex';
+  maxCompileTime: number; // 毫秒
+  enableCache: boolean;
+  passes: number; // 编译次数
+}
+
+// 编译结果
+export interface CompileResult {
+  success: boolean;
+  pdf?: Uint8Array;
+  log?: string;
+  error?: string;
+}
+
+// 编译进度信息
+export interface CompilationProgress {
+  stage: CompilationStage;
+  progress: number; // 0-100
+  message: string;
+}

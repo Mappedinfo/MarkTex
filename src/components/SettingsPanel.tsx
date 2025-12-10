@@ -30,7 +30,7 @@ export function SettingsPanel() {
                 value={config.document.documentClass}
                 onChange={(e) =>
                   updateConfig({
-                    document: { documentClass: e.target.value as any },
+                    document: { ...config.document, documentClass: e.target.value as any },
                   })
                 }
               >
@@ -44,7 +44,7 @@ export function SettingsPanel() {
               <select
                 value={config.document.fontSize}
                 onChange={(e) =>
-                  updateConfig({ document: { fontSize: e.target.value as any } })
+                  updateConfig({ document: { ...config.document, fontSize: e.target.value as any } })
                 }
               >
                 <option value="10pt">10pt</option>
@@ -58,7 +58,7 @@ export function SettingsPanel() {
                   type="checkbox"
                   checked={config.document.enableChinese}
                   onChange={(e) =>
-                    updateConfig({ document: { enableChinese: e.target.checked } })
+                    updateConfig({ document: { ...config.document, enableChinese: e.target.checked } })
                   }
                 />
                 启用中文支持
@@ -73,7 +73,7 @@ export function SettingsPanel() {
               <select
                 value={config.table.tableStyle}
                 onChange={(e) =>
-                  updateConfig({ table: { tableStyle: e.target.value as any } })
+                  updateConfig({ table: { ...config.table, tableStyle: e.target.value as any } })
                 }
               >
                 <option value="booktabs">专业样式（booktabs）</option>
@@ -87,7 +87,7 @@ export function SettingsPanel() {
                 value={config.table.autoWrapThreshold}
                 onChange={(e) =>
                   updateConfig({
-                    table: { autoWrapThreshold: parseInt(e.target.value) },
+                    table: { ...config.table, autoWrapThreshold: parseInt(e.target.value) },
                   })
                 }
                 min="10"

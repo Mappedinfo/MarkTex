@@ -3,10 +3,12 @@
  */
 
 import MarkdownIt from 'markdown-it';
-import type { Token } from 'markdown-it';
 import type { LatexRenderResult, TableConfig } from '../types';
 import { escapeLaTeX, hasChinese } from '../utils/latexEscape';
 import { TableProcessor } from './tableProcessor';
+
+// 使用any代替Token类型以避免TypeScript类型错误
+type Token = any;
 
 export class LatexRenderer {
   private md: MarkdownIt;
@@ -170,7 +172,6 @@ export class LatexRenderer {
         case 'image':
           this.flags.hasImages = true;
           this.packages.add('graphicx');
-          const alt = child.content || '';
           const src = child.attrGet('src') || '';
           result.push(`\\includegraphics{${src}}`);
           break;
@@ -201,7 +202,6 @@ export class LatexRenderer {
     if (!token.children) return content;
 
     let result = content;
-    let offset = 0;
 
     for (let i = 0; i < token.children.length; i++) {
       const child = token.children[i];

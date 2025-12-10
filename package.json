@@ -21,7 +21,6 @@
     "markdown-it-task-lists": "^2.1.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "texlive": "^1.2.0",
     "zustand": "^5.0.9"
   },
   "devDependencies": {

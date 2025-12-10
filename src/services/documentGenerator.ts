@@ -62,10 +62,16 @@ export class DocumentGenerator {
     // 必需宏包
     packages.push('\\usepackage{geometry}');
     
-    // 中文支持
+    // 中文支持 - 适配 SwiftLaTeX XeTeX 引擎
     if (config.enableChinese || result.hasChinese) {
-      // 不指定字体集，让 ctex 自动选择可用字体
-      packages.push('\\usepackage{ctex}');
+      // 使用 fontspec 和 xeCJK 支持中文，适配 SwiftLaTeX 虚拟文件系统
+      packages.push('\\usepackage{fontspec}');
+      packages.push('\\usepackage{xeCJK}');
+      // 设置中文字体（在虚拟文件系统中的路径）
+      // 使用绝对路径,确保 XeTeX 能找到字体
+      packages.push('\\setCJKmainfont[Path=/fonts/]{NotoSansCJKsc-Regular.otf}');
+      packages.push('\\setCJKsansfont[Path=/fonts/]{NotoSansCJKsc-Regular.otf}');
+      packages.push('\\setCJKmonofont[Path=/fonts/]{NotoSansCJKsc-Regular.otf}');
     }
 
     // 图片支持
@@ -138,7 +144,7 @@ export class DocumentGenerator {
   /**
    * 生成文档配置
    */
-  private generateDocumentConfig(result: LatexRenderResult, config: DocumentConfig): string {
+  private generateDocumentConfig(_result: LatexRenderResult, _config: DocumentConfig): string {
     const configs: string[] = [];
 
     // 页面布局
