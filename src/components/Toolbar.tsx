@@ -4,17 +4,37 @@
 
 import { useAppStore } from '../stores/appStore';
 import { ExportService } from '../services/exportService';
+import { LatexRenderer } from '../services/latexRenderer';
+import { DocumentGenerator } from '../services/documentGenerator';
 import './Toolbar.css';
 
 const exportService = new ExportService();
+const docGenerator = new DocumentGenerator();
 
 export function Toolbar() {
   const {
     latexOutput,
+    markdownContent,
+    config,
     setMarkdownContent,
     toggleSettingsPanel,
     showNotification,
   } = useAppStore();
+
+  /**
+   * 生成用于导出的 LaTeX 代码（Overleaf 兼容版）
+   */
+  const generateExportLatex = (): string => {
+    try {
+      const renderer = new LatexRenderer(config.table);
+      const renderResult = renderer.render(markdownContent);
+      // 传入 forExport: true 生成 Overleaf 兼容的字体配置
+      return docGenerator.generate(renderResult, config.document, true);
+    } catch (error) {
+      console.error('Export generation error:', error);
+      return latexOutput; // 降级使用预览版本
+    }
+  };
 
   const handleNew = () => {
     if (confirm('确定要新建文档吗？当前内容将被清空。')) {
@@ -38,17 +58,19 @@ export function Toolbar() {
   };
 
   const handleCopy = async () => {
-    const success = await exportService.copyToClipboard(latexOutput);
+    const exportLatex = generateExportLatex();
+    const success = await exportService.copyToClipboard(exportLatex);
     if (success) {
-      showNotification('已复制到剪贴板', 'success');
+      showNotification('已复制到剪贴板（Overleaf 兼容版）', 'success');
     } else {
       showNotification('复制失败', 'error');
     }
   };
 
   const handleDownload = () => {
-    exportService.downloadLatex(latexOutput);
-    showNotification('文件已下载', 'success');
+    const exportLatex = generateExportLatex();
+    exportService.downloadLatex(exportLatex);
+    showNotification('文件已下载（Overleaf 兼容版）', 'success');
   };
 
   return (

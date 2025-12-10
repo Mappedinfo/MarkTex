@@ -8,8 +8,9 @@ import type { DocumentConfig, LatexRenderResult } from '../types';
 export class DocumentGenerator {
   /**
    * 生成完整的 LaTeX 文档
+   * @param forExport 是否用于导出(true: Overleaf兼容, false: SwiftLaTeX预览)
    */
-  generate(renderResult: LatexRenderResult, config: DocumentConfig): string {
+  generate(renderResult: LatexRenderResult, config: DocumentConfig, forExport: boolean = false): string {
     const sections: string[] = [];
 
     // 1. 文档类声明
@@ -17,7 +18,7 @@ export class DocumentGenerator {
     sections.push('');
 
     // 2. 导入宏包
-    sections.push(this.generatePackages(renderResult, config));
+    sections.push(this.generatePackages(renderResult, config, forExport));
     sections.push('');
 
     // 3. 文档配置
@@ -55,23 +56,32 @@ export class DocumentGenerator {
 
   /**
    * 生成宏包导入
+   * @param forExport 是否用于导出
    */
-  private generatePackages(result: LatexRenderResult, config: DocumentConfig): string {
+  private generatePackages(result: LatexRenderResult, config: DocumentConfig, forExport: boolean = false): string {
     const packages: string[] = [];
 
     // 必需宏包
     packages.push('\\usepackage{geometry}');
     
-    // 中文支持 - 适配 SwiftLaTeX XeTeX 引擎
+    // 中文支持 - 兼容两种环境
     if (config.enableChinese || result.hasChinese) {
-      // 使用 fontspec 和 xeCJK 支持中文，适配 SwiftLaTeX 虚拟文件系统
       packages.push('\\usepackage{fontspec}');
       packages.push('\\usepackage{xeCJK}');
-      // 设置中文字体（在虚拟文件系统中的路径）
-      // 使用绝对路径,确保 XeTeX 能找到字体
-      packages.push('\\setCJKmainfont[Path=/fonts/]{NotoSansCJKsc-Regular.otf}');
-      packages.push('\\setCJKsansfont[Path=/fonts/]{NotoSansCJKsc-Regular.otf}');
-      packages.push('\\setCJKmonofont[Path=/fonts/]{NotoSansCJKsc-Regular.otf}');
+      
+      if (forExport) {
+        // Overleaf/标准 LaTeX 环境 - 使用系统字体名称
+        packages.push('% 使用 Overleaf 系统字体,如果编译失败请改为其他中文字体');
+        packages.push('% 可选字体: Noto Sans CJK SC, Source Han Sans SC, SimSun, FandolSong');
+        packages.push('\\setCJKmainfont{Noto Sans CJK SC}');
+        packages.push('\\setCJKsansfont{Noto Sans CJK SC}');
+        packages.push('\\setCJKmonofont{Noto Sans CJK SC}');
+      } else {
+        // SwiftLaTeX 前端环境 - 使用虚拟文件系统路径
+        packages.push('\\setCJKmainfont[Path=/fonts/]{NotoSansCJKsc-Regular.otf}');
+        packages.push('\\setCJKsansfont[Path=/fonts/]{NotoSansCJKsc-Regular.otf}');
+        packages.push('\\setCJKmonofont[Path=/fonts/]{NotoSansCJKsc-Regular.otf}');
+      }
     }
 
     // 图片支持

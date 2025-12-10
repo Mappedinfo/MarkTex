@@ -1,0 +1,15 @@
+ChkTeX v1.7.8 - Copyright 1995-96 Jens T. Berger Thielemann.
+Compiled with PCRE regex support.
+No errors printed; No warnings printed; 34 user suppressed warnings; No line suppressed warnings.
+output.xdv -> output.pdf
+[1]
+19381 bytes written
+Latexmk: ====Undefined refs and citations with line #s in .tex file:
+  Missing character: There is no 转 (U+8F6C) in font [lmroman12-bold]:mapping=tex-text;!
+  Missing character: There is no 换 (U+6362) in font [lmroman12-bold]:mapping=tex-text;!
+  Missing character: There is no 工 (U+5DE5) in font [lmroman12-bold]:mapping=tex-text;!
+  Missing character: There is no 具 (U+5177) in font [lmroman12-bold]:mapping=tex-text;!
+  Missing character: There is no 欢 (U+6B22) in font [lmroman10-regular]:mapping=tex-text;!
+  Missing character: There is no 迎 (U+8FCE) in font [lmroman10-regular]:mapping=tex-text;!
+  Missing character: There is no 使 (U+4F7F) in font [lmroman10-regular]:mapping=tex-text;!
+ And 259 more --- see log file 'output.log'
