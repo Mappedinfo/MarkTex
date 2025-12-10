@@ -25,9 +25,10 @@ export function escapeLaTeX(text: string, preserveMath = false): string {
   // 如果需要保留数学公式
   if (preserveMath) {
     const mathParts: string[] = [];
+    // 使用更安全的占位符,避免被转义
     let result = text.replace(/(\$\$[\s\S]+?\$\$|\$[^$]+?\$)/g, (match) => {
       mathParts.push(match);
-      return `__MATH_PLACEHOLDER_${mathParts.length - 1}__`;
+      return `§§MATH${mathParts.length - 1}§§`;
     });
 
     // 转义非数学部分
@@ -35,7 +36,7 @@ export function escapeLaTeX(text: string, preserveMath = false): string {
 
     // 恢复数学公式
     mathParts.forEach((math, index) => {
-      result = result.replace(`__MATH_PLACEHOLDER_${index}__`, math);
+      result = result.replace(`§§MATH${index}§§`, math);
     });
 
     return result;

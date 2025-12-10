@@ -21,6 +21,8 @@ export class LatexRenderer {
     hasCode: boolean;
     hasMath: boolean;
   };
+  // 数学公式占位符缓存
+  private mathPlaceholders: Map<string, string>;
 
   constructor(tableConfig: TableConfig) {
     // 初始化 markdown-it
@@ -32,6 +34,7 @@ export class LatexRenderer {
 
     this.tableProcessor = new TableProcessor(tableConfig);
     this.packages = new Set();
+    this.mathPlaceholders = new Map();
     this.flags = {
       hasChinese: false,
       hasImages: false,
@@ -47,6 +50,7 @@ export class LatexRenderer {
   render(markdown: string): LatexRenderResult {
     // 重置状态
     this.packages.clear();
+    this.mathPlaceholders.clear();
     this.flags = {
       hasChinese: false,
       hasImages: false,
@@ -60,17 +64,59 @@ export class LatexRenderer {
       this.flags.hasChinese = true;
     }
 
+    // 预处理：提取所有数学公式，替换为占位符
+    let processedMarkdown = this.extractMathFormulas(markdown);
+
     // 解析 Markdown
-    const tokens = this.md.parse(markdown, {});
+    const tokens = this.md.parse(processedMarkdown, {});
 
     // 渲染 tokens
-    const content = this.renderTokens(tokens);
+    let content = this.renderTokens(tokens);
+
+    // 恢复所有数学公式
+    content = this.restoreMathFormulas(content);
 
     return {
       content,
       packages: this.packages,
       ...this.flags,
     };
+  }
+
+  /**
+   * 提取数学公式，替换为占位符
+   */
+  private extractMathFormulas(text: string): string {
+    let counter = 0;
+    // 先处理块级公式，再处理行内公式（避免冲突）
+    let result = text.replace(/\$\$[\s\S]+?\$\$/g, (match) => {
+      this.flags.hasMath = true;
+      const placeholder = `§§BLOCKMATH${counter}§§`;
+      this.mathPlaceholders.set(placeholder, match);
+      counter++;
+      return placeholder;
+    });
+
+    result = result.replace(/\$[^$\n]+?\$/g, (match) => {
+      this.flags.hasMath = true;
+      const placeholder = `§§INLINEMATH${counter}§§`;
+      this.mathPlaceholders.set(placeholder, match);
+      counter++;
+      return placeholder;
+    });
+
+    return result;
+  }
+
+  /**
+   * 恢复数学公式
+   */
+  private restoreMathFormulas(text: string): string {
+    let result = text;
+    this.mathPlaceholders.forEach((formula, placeholder) => {
+      result = result.replace(placeholder, formula);
+    });
+    return result;
   }
 
   /**
@@ -152,7 +198,7 @@ export class LatexRenderer {
     for (const child of token.children) {
       switch (child.type) {
         case 'text':
-          result.push(escapeLaTeX(child.content, true));
+          result.push(escapeLaTeX(child.content, false)); // 不再在这里处理数学公式
           break;
         case 'strong_open':
           break;
@@ -181,7 +227,7 @@ export class LatexRenderer {
           break;
         default:
           if (child.content) {
-            result.push(escapeLaTeX(child.content, true));
+            result.push(escapeLaTeX(child.content, false)); // 不再在这里处理数学公式
           }
       }
     }
