@@ -5,7 +5,6 @@
  */
 
 import type { CompileConfig, CompileResult, CompilationProgress, EngineStatus, FontStatus } from '../types';
-import { formatFileService } from './formatFileService';
 
 // SwiftLaTeX 引擎声明
 declare global {
@@ -152,7 +151,7 @@ export class SwiftLaTeXService {
 
     // 加载 DvipdfmxEngine (注意: 需要先编译 swiftlatexdvipdfm.js)
     // TODO: 编译 dvipdfmx.wasm 引擎
-    const dvipdfmPromise = new Promise((resolve, reject) => {
+    const dvipdfmPromise = new Promise((resolve) => {
       const script = document.createElement('script');
       script.src = '/swiftlatex/SwiftLaTeX-20022022/dvipdfm.wasm/DvipdfmxEngine.js';
       script.async = true;
