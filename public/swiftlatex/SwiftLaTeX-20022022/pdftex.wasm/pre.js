@@ -4,7 +4,7 @@ var Module = {};
 self.memlog = "";
 self.initmem = undefined;
 self.mainfile = "main.tex";
-self.texlive_endpoint = "https://texlive2.swiftlatex.com/";
+self.texlive_endpoint = "/texlive/";
 Module['print'] = function(a) {
     self.memlog += (a + "\n");
 };

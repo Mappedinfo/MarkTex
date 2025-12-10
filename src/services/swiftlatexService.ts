@@ -279,6 +279,13 @@ export class SwiftLaTeXService {
       });
       
       try {
+        // 首先需要加载 pdflatex.ini 文件到虚拟文件系统
+        console.log('📝 加载 pdflatex.ini 文件...');
+        const iniResponse = await fetch('/swiftlatex/SwiftLaTeX-20022022/pdftex.wasm/pdflatex.ini');
+        const iniContent = await iniResponse.text();
+        this.engine.writeMemFSFile('pdflatex.ini', iniContent);
+        console.log('✅ pdflatex.ini 文件已加载');
+        
         await this.engine.compileFormat();
         console.log('✅ 格式文件生成成功');
       } catch (formatError) {

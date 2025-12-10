@@ -5,6 +5,19 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   
+  // 开发服务器配置
+  server: {
+    proxy: {
+      // 代理 SwiftLaTeX CDN 请求，解决 CORS 问题
+      '/texlive': {
+        target: 'https://texlive2.swiftlatex.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/texlive/, ''),
+        secure: false,
+      },
+    },
+  },
+  
   // 构建优化
   build: {
     // 生成 sourcemap 以便调试
