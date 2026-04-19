@@ -150,7 +150,7 @@ export class SwiftLaTeXService {
     // 加载 XeTeX 引擎
     const xetexPromise = new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = this.config.engineUrl;
+      script.src = `${this.basePath}/SwiftLaTeX-20022022/xetex.wasm/XeTeXEngine.js`;
       script.async = true;
 
       script.onload = () => {
@@ -159,8 +159,8 @@ export class SwiftLaTeXService {
       };
 
       script.onerror = () => {
-        console.error('❌ XeTeX 引擎加载失败');
-        reject(new Error('无法加载 XeTeX 引擎'));
+        console.warn('⚠️ XeTeX 引擎加载失败');
+        resolve(false);  // 不 reject，让系统继续运行
       };
 
       document.head.appendChild(script);
@@ -237,15 +237,15 @@ export class SwiftLaTeXService {
         message: '正在初始化引擎实例...',
       });
 
-      // 创建引擎实例（优先 PdfTeX，其次 XeTeX）
-      if (typeof window.PdfTeXEngine !== 'undefined') {
-        this.engine = new window.PdfTeXEngine();
-        console.log('使用 PdfTeX 引擎');
-        console.log('PdfTeX 引擎实例:', this.engine);
-      } else if (typeof window.XeTeXEngine !== 'undefined') {
+      // 创建引擎实例（优先 XeTeX，因为不需要预编译格式文件）
+      if (typeof window.XeTeXEngine !== 'undefined') {
         this.engine = new window.XeTeXEngine();
-        console.log('使用 XeTeX 引擎');
+        console.log('使用 XeTeX 引擎 (推荐，支持中文)');
         console.log('XeTeX 引擎实例:', this.engine);
+      } else if (typeof window.PdfTeXEngine !== 'undefined') {
+        this.engine = new window.PdfTeXEngine();
+        console.log('使用 PdfTeX 引擎 (不支持中文，需要格式文件)');
+        console.log('PdfTeX 引擎实例:', this.engine);
       } else {
         throw new Error('未找到可用的 LaTeX 引擎');
       }
@@ -577,19 +577,33 @@ ${pdfResult.log || ''}`,
         };
       } else {
         console.error('❌ 编译失败,未生成 XDV');
-        console.error('编译状态码:', result.status);
         console.error('编译日志:', result.log);
-        console.error('完整结果:', result);
-        
-        this.emitProgress({
-          stage: 'error',
-          progress: 0,
-          message: '编译失败',
-        });
+
+        // 检测是否是格式文件缺失的错误
+        const isFormatFileMissing = result.log?.includes("can't find the format file");
+
+        if (isFormatFileMissing) {
+          return {
+            success: false,
+            log: result.log || '',
+            error: `PdfTeX 引擎缺少预编译格式文件 (swiftlatexpdftex.fmt)
+
+SwiftLaTeX 的 PdfTeX 引擎需要预先生成的格式文件 (~20MB)。
+
+解决方案：
+1. 使用 XeTeX 引擎（推荐，支持中文）
+2. 或手动生成格式文件（需要 Emscripten SDK）
+
+请使用"导出 LaTeX"按钮获取 .tex 源文件，在本地使用 XeLaTeX 编译。`,
+          };
+        }
 
         return {
           success: false,
-          log: result.log || '无编译日志输出',
+          log: `编译日志:
+${result.log || ''}
+
+请使用"导出 LaTeX"功能获取源文件，在本地使用 XeLaTeX 编译。`,
           error: `编译失败 (状态码: ${result.status})`,
         };
       }
