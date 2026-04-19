@@ -225,27 +225,79 @@
 
 /* 编译错误 */
 .marktex-panel .compile-error {
-  padding: 12px;
+  padding: 16px;
   margin: 12px;
   background: #fff2f0;
   border: 1px solid #ffccc7;
-  border-radius: 4px;
+  border-radius: 8px;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .marktex-panel .compile-error .error-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ffccc7;
   color: #ff4d4f;
+  font-size: 14px;
 }
 
-.marktex-panel .compile-error pre {
+.marktex-panel .compile-error .error-header span {
+  font-size: 18px;
+}
+
+.marktex-panel .compile-error .error-content {
   margin: 0;
   font-size: 12px;
   white-space: pre-wrap;
   word-break: break-all;
   color: #d46b08;
+  background: #fff7e6;
+  padding: 12px;
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.marktex-panel .compile-error .btn-retry {
+  margin-top: 12px;
+  padding: 6px 16px;
+  background: #ff4d4f;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.marktex-panel .compile-error .btn-retry:hover {
+  background: #ff7875;
+}
+
+/* 编译阶段提示 */
+.marktex-panel .compile-stage {
+  min-height: 24px;
+  margin: 12px 0;
+}
+
+.marktex-panel .compile-stage p {
+  margin: 4px 0;
+  color: #666;
+  font-size: 13px;
+}
+
+.marktex-panel .compile-stage .error-text {
+  color: #ff4d4f;
+}
+
+/* 进度提示 */
+.marktex-panel .progress-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #999;
 }
 
 /* 进度条 */

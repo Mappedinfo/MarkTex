@@ -440,7 +440,7 @@ export class SwiftLaTeXService {
       console.log('LaTeX 内容预览:', latexContent.substring(0, 500));
       
       // 测试：先尝试编译一个最简单的文档
-      const testSimple = true; // 设置为 true 来测试最简单的文档
+      const testSimple = false; // 设置为 true 来测试最简单的文档
       if (testSimple) {
         console.log('⚠️ 使用简化测试文档');
         latexContent = `\\documentclass{article}

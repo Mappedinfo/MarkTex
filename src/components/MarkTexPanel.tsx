@@ -207,6 +207,10 @@ export function MarkTexPanel(props: MarkTexPanelProps = {}) {
     }
 
     try {
+      setCompilationStage('engine-loading');
+      setCompilationProgress(10);
+      setCompileError('正在加载编译引擎...');
+
       const result = await swiftlatexService.compile(latexOutput);
 
       if (result.success && result.pdf) {
@@ -214,17 +218,21 @@ export function MarkTexPanel(props: MarkTexPanelProps = {}) {
         setPdfUrl(url);
         setEngineStatus('ready');
         setCompileError(null);
+        setCompilationStage('complete');
+        setCompilationProgress(100);
       } else {
         const errorMessage = result.error || '编译失败';
-        setCompileError(`⚠️ PDF 预览功能暂时不可用\n\n请使用以下替代方案：\n1. 点击"导出 LaTeX"按钮获取 .tex 源文件\n2. 在本地使用 XeLaTeX 编译\n\n技术详情：${errorMessage}`);
+        const logMessage = result.log ? `\n\n编译日志:\n${result.log.substring(0, 2000)}` : '';
+        setCompileError(`PDF 编译失败\n\n${errorMessage}${logMessage}`);
+        setEngineStatus('error');
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      setCompileError(`编译失败: ${errorMessage}`);
+      setCompileError(`编译失败: ${errorMessage}\n\n请检查控制台获取更多信息。`);
       setEngineStatus('error');
+      console.error('PDF compilation error:', error);
     } finally {
       setIsCompiling(false);
-      setCompilationStage('idle');
     }
   }, [latexOutput, pdfUrl, setIsCompiling, setCompileError, setCompilationStage, setCompilationProgress, setPdfUrl, setEngineStatus]);
 
@@ -462,9 +470,16 @@ export function MarkTexPanel(props: MarkTexPanelProps = {}) {
                     <div className="pdf-preview-placeholder">
                       <div className="loading-spinner"></div>
                       <h3>正在编译 PDF...</h3>
-                      <p>{compilationStage === 'engine-loading' && '加载编译引擎...'}</p>
-                      <p>{compilationStage === 'font-loading' && '加载中文字体...'}</p>
-                      <p>{compilationStage === 'compiling' && '正在编译文档...'}</p>
+                      <div className="compile-stage">
+                        {compilationStage === 'idle' && <p>准备中...</p>}
+                        {compilationStage === 'engine-loading' && <p>⏳ 加载编译引擎...</p>}
+                        {compilationStage === 'font-loading' && <p>⏳ 加载中文字体...</p>}
+                        {compilationStage === 'file-preparing' && <p>⏳ 准备源文件...</p>}
+                        {compilationStage === 'compiling' && <p>⏳ 正在编译文档...</p>}
+                        {compilationStage === 'generating-pdf' && <p>⏳ 生成 PDF 文件...</p>}
+                        {compilationStage === 'error' && <p className="error-text">⚠️ 编译出错</p>}
+                        {compilationStage === 'complete' && <p>✅ 编译完成</p>}
+                      </div>
                       {compilationProgress > 0 && (
                         <div className="progress-bar">
                           <div
@@ -473,6 +488,7 @@ export function MarkTexPanel(props: MarkTexPanelProps = {}) {
                           ></div>
                         </div>
                       )}
+                      <p className="progress-hint">首次编译可能需要几秒钟...</p>
                     </div>
                   ) : pdfUrl ? (
                     <>
@@ -492,7 +508,14 @@ export function MarkTexPanel(props: MarkTexPanelProps = {}) {
                     </>
                   ) : compileError ? (
                     <div className="compile-error">
-                      <pre>{compileError}</pre>
+                      <div className="error-header">
+                        <span>⚠️</span>
+                        <strong>编译错误</strong>
+                      </div>
+                      <pre className="error-content">{compileError}</pre>
+                      <button onClick={handleCompilePdf} className="btn-retry">
+                        重试
+                      </button>
                     </div>
                   ) : (
                     <div className="pdf-preview-placeholder">
