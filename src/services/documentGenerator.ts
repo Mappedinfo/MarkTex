@@ -144,6 +144,14 @@ export class DocumentGenerator {
       packages.push('\\usepackage[normalem]{ulem}');
     }
 
+    // Wiki-link 命令定义
+    if (result.hasWikiLinks) {
+      packages.push('');
+      packages.push('% Wiki-link 语义命令');
+      packages.push('\\newcommand{\\noderef}[2]{\\textbf{#1}\\marginpar{\\tiny\\ttfamily #2}}');
+      packages.push('\\newcommand{\\reltype}[1]{\\textit{[#1]}}');
+    }
+
     // 其他必要宏包
     packages.push('\\usepackage{enumitem}');
     packages.push('\\usepackage{float}');

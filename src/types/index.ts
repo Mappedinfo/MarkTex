@@ -51,6 +51,7 @@ export interface LatexRenderResult {
   hasTables: boolean;
   hasCode: boolean;
   hasMath: boolean;
+  hasWikiLinks: boolean;
 }
 
 // 引擎状态

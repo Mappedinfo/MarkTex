@@ -36,12 +36,13 @@ export class SwiftLaTeXService {
   private fontStatus: FontStatus = {};
   private isLoading = false;
   private progressListeners: Set<ProgressListener> = new Set();
+  private basePath: string = '/swiftlatex';
   
   // 默认配置
   private config: EngineConfig = {
     // 临时使用 PdfTeX 引擎测试（不支持中文，但更稳定）
     // TODO: 修复 XeTeX 引擎的格式文件问题后切换回来
-    engineUrl: '/swiftlatex/SwiftLaTeX-20022022/pdftex.wasm/PdfTeXEngine.js',
+    engineUrl: `${this.basePath}/SwiftLaTeX-20022022/pdftex.wasm/PdfTeXEngine.js`,
     fontCdn: 'https://cdn.jsdelivr.net/gh/googlefonts/noto-cjk@main/Sans/OTF/SimplifiedChinese',
     maxCompileTime: 30000,
     enableCache: true,
@@ -52,6 +53,22 @@ export class SwiftLaTeXService {
     regular: 'NotoSansCJKsc-Regular.otf',
     bold: 'NotoSansCJKsc-Bold.otf',
   };
+
+  /**
+   * 设置 SwiftLaTeX WASM 资产的基础路径
+   * 在集成模式下可指向不同目录或 CDN
+   */
+  setBasePath(path: string): void {
+    this.basePath = path.replace(/\/+$/, ''); // 去除尾部斜杠
+    this.config.engineUrl = `${this.basePath}/SwiftLaTeX-20022022/pdftex.wasm/PdfTeXEngine.js`;
+  }
+
+  /**
+   * 获取当前基础路径
+   */
+  getBasePath(): string {
+    return this.basePath;
+  }
 
   /**
    * 检查引擎是否已加载
@@ -153,7 +170,7 @@ export class SwiftLaTeXService {
     // TODO: 编译 dvipdfmx.wasm 引擎
     const dvipdfmPromise = new Promise((resolve) => {
       const script = document.createElement('script');
-      script.src = '/swiftlatex/SwiftLaTeX-20022022/dvipdfm.wasm/DvipdfmxEngine.js';
+      script.src = `${this.basePath}/SwiftLaTeX-20022022/dvipdfm.wasm/DvipdfmxEngine.js`;
       script.async = true;
 
       script.onload = () => {
@@ -280,7 +297,7 @@ export class SwiftLaTeXService {
       try {
         // 首先需要加载 pdflatex.ini 文件到虚拟文件系统
         console.log('📝 加载 pdflatex.ini 文件...');
-        const iniResponse = await fetch('/swiftlatex/SwiftLaTeX-20022022/pdftex.wasm/pdflatex.ini');
+        const iniResponse = await fetch(`${this.basePath}/SwiftLaTeX-20022022/pdftex.wasm/pdflatex.ini`);
         const iniContent = await iniResponse.text();
         this.engine.writeMemFSFile('pdflatex.ini', iniContent);
         console.log('✅ pdflatex.ini 文件已加载');

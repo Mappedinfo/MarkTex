@@ -3,7 +3,7 @@
  * 作为一个独立的面板组件，可以嵌入到任何 React 应用中
  */
 
-import React, { useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useCallback, useState, createElement } from 'react';
 import { EditorState } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers } from '@codemirror/view';
 import { defaultKeymap } from '@codemirror/commands';
@@ -13,8 +13,10 @@ import { LatexRenderer } from '../services/latexRenderer';
 import { DocumentGenerator } from '../services/documentGenerator';
 import { countMarkdownWords } from '../services/wordCounter';
 import { swiftlatexService } from '../services/swiftlatexService';
+import { parseWikiLinks } from '../plugins/wikilink';
 import type { AppConfig } from '../types';
 import './MarkdownEditor.css';
+import './MarkTexPanel.css';
 
 export interface MarkTexPanelProps {
   /** 初始内容 */
@@ -25,6 +27,12 @@ export interface MarkTexPanelProps {
   onContentChange?: (content: string) => void;
   /** LaTeX 输出变化回调 */
   onLatexChange?: (latex: string) => void;
+  /** Wiki-link 点击回调 */
+  onWikiLinkClick?: (type: 'node' | 'relation', id: string, label: string) => void;
+  /** 笔记保存回调 */
+  onNoteSave?: (note: { title: string; content: string }) => Promise<void>;
+  /** SwiftLaTeX WASM 资产基础路径 */
+  swiftlatexBasePath?: string;
   /** 类名 */
   className?: string;
   /** 样式 */
@@ -35,23 +43,38 @@ export interface MarkTexPanelProps {
   showToolbar?: boolean;
   /** 是否显示设置面板 */
   showSettings?: boolean;
+  /** 初始预览模式 */
+  initialPreviewMode?: 'source' | 'pdf' | 'preview';
 }
 
 /**
  * MarkTexPanel - 可嵌入的 Markdown/LaTeX 编辑面板
  */
-export function MarkTexPanel(props: MarkTexPanelProps) {
+export function MarkTexPanel(props: MarkTexPanelProps = {}) {
+  // 防御性检查：确保 props 不为 null
+  const safeProps = props || {};
   const {
-    initialContent,
+    initialContent = '',
     initialConfig,
     onContentChange,
     onLatexChange,
+    onWikiLinkClick,
+    onNoteSave,
+    swiftlatexBasePath,
     className,
     style,
     showPreview = true,
     showToolbar = true,
     showSettings = true,
-  } = props;
+    initialPreviewMode = 'preview',
+  } = safeProps;
+
+  // 设置 SwiftLaTeX 基础路径
+  useEffect(() => {
+    if (swiftlatexBasePath) {
+      swiftlatexService.setBasePath(swiftlatexBasePath);
+    }
+  }, [swiftlatexBasePath]);
 
   // 创建 store hook
   const useStore = useMemo(() => {
@@ -91,7 +114,15 @@ export function MarkTexPanel(props: MarkTexPanelProps) {
   const viewRef = useRef<EditorView | null>(null);
   const rendererRef = useRef<LatexRenderer | null>(null);
   const docGeneratorRef = useRef<DocumentGenerator | null>(null);
-  const [isClient, setIsClient] = React.useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [noteTitle, setNoteTitle] = useState('');
+
+  // 初始化预览模式
+  useEffect(() => {
+    if (initialPreviewMode) {
+      setPreviewMode(initialPreviewMode);
+    }
+  }, []);
 
   // 计算字数统计
   const wordCount = useMemo(() => {
@@ -218,6 +249,123 @@ export function MarkTexPanel(props: MarkTexPanelProps) {
     });
   }, [markdownContent, showNotification]);
 
+  // 处理 Wiki-link 点击
+  const handleWikiLinkClick = useCallback(
+    (e: React.MouseEvent<HTMLSpanElement>) => {
+      const target = e.currentTarget;
+      const type = target.classList.contains('wikilink-node') ? 'node' : 'relation';
+      const id = target.dataset.id || target.dataset.type || '';
+      const label = target.dataset.label || target.textContent || '';
+      onWikiLinkClick?.(type, id, label);
+    },
+    [onWikiLinkClick]
+  );
+
+  // 保存笔记
+  const handleSaveNote = useCallback(async () => {
+    if (!markdownContent.trim()) {
+      showNotification('内容不能为空', 'error');
+      return;
+    }
+
+    try {
+      await onNoteSave?.({ title: noteTitle || '无标题', content: markdownContent });
+      showNotification('笔记已保存', 'success');
+    } catch (error) {
+      showNotification('保存失败', 'error');
+    }
+  }, [noteTitle, markdownContent, onNoteSave, showNotification]);
+
+  // 解析 markdown 内容为 HTML（包含 wiki-links）
+  const renderMarkdownPreview = useCallback(() => {
+    const lines = markdownContent.split('\n');
+    return lines.map((line, lineIndex) => {
+      const parts: React.ReactNode[] = [];
+      const wikiLinks = parseWikiLinks(line);
+      let lastIndex = 0;
+
+      wikiLinks.forEach((link, i) => {
+        // 添加链接前的文本
+        if (link.start > lastIndex) {
+          parts.push(<span key={`text-${lineIndex}-${i}`}>{line.slice(lastIndex, link.start)}</span>);
+        }
+
+        // 添加 wiki-link
+        if (link.type === 'node') {
+          parts.push(
+            <span
+              key={`wikilink-${lineIndex}-${i}`}
+              className="wikilink-node"
+              data-id={link.target || ''}
+              data-label={link.displayText}
+              onClick={handleWikiLinkClick}
+              style={{
+                color: '#1890ff',
+                backgroundColor: '#e6f7ff',
+                padding: '2px 6px',
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
+            >
+              {link.displayText}
+            </span>
+          );
+        } else if (link.type === 'relation') {
+          parts.push(
+            <span
+              key={`wikilink-${lineIndex}-${i}`}
+              className="wikilink-relation"
+              data-type={link.target || link.displayText}
+              onClick={handleWikiLinkClick}
+              style={{
+                color: '#52c41a',
+                backgroundColor: '#f6ffed',
+                padding: '2px 6px',
+                borderRadius: 4,
+                border: '1px dashed #b7eb8f',
+                cursor: 'pointer',
+              }}
+            >
+              {link.displayText}
+            </span>
+          );
+        }
+
+        lastIndex = link.end;
+      });
+
+      // 添加剩余文本
+      if (lastIndex < line.length) {
+        parts.push(<span key={`text-end-${lineIndex}`}>{line.slice(lastIndex)}</span>);
+      }
+
+      // 处理标题和列表等 Markdown 语法
+      let renderedLine = parts.length > 0 ? parts : [line];
+      let tag: 'h1' | 'h2' | 'h3' | 'li' | 'p' = 'p';
+
+      if (line.startsWith('# ')) {
+        tag = 'h1';
+        renderedLine = [line.slice(2)];
+      } else if (line.startsWith('## ')) {
+        tag = 'h2';
+        renderedLine = [line.slice(3)];
+      } else if (line.startsWith('### ')) {
+        tag = 'h3';
+        renderedLine = [line.slice(4)];
+      } else if (line.startsWith('- ') || line.startsWith('* ')) {
+        tag = 'li';
+        renderedLine = [line.slice(2)];
+      } else if (/^\d+\.\s/.test(line)) {
+        tag = 'li';
+        renderedLine = [line.replace(/^\d+\.\s/, '')];
+      } else if (line.trim() === '') {
+        return createElement('br', { key: `br-${lineIndex}` });
+      }
+
+      return createElement(tag, { key: lineIndex }, renderedLine);
+    });
+  }, [markdownContent, handleWikiLinkClick]);
+
   return (
     <div className={`marktex-panel ${className || ''}`} style={style}>
       {/* 通知 */}
@@ -234,8 +382,18 @@ export function MarkTexPanel(props: MarkTexPanelProps) {
             <div className="marktex-toolbar">
               <span className="toolbar-title">Markdown 编辑器</span>
               <div className="toolbar-actions">
+                <input
+                  type="text"
+                  className="toolbar-title-input"
+                  placeholder="笔记标题..."
+                  value={noteTitle}
+                  onChange={(e) => setNoteTitle(e.target.value)}
+                />
+                <button onClick={handleSaveNote} title="保存笔记" className="btn-save">
+                  保存
+                </button>
                 <button onClick={handleCopyMarkdown} title="复制 Markdown">
-                  复制 MD
+                  复制
                 </button>
               </div>
             </div>
@@ -260,9 +418,15 @@ export function MarkTexPanel(props: MarkTexPanelProps) {
         {showPreview && (
           <div className="marktex-preview-section">
             <div className="marktex-toolbar">
-              <span className="toolbar-title">LaTeX 预览</span>
+              <span className="toolbar-title">预览</span>
               <div className="toolbar-actions">
                 <div className="preview-mode-toggle">
+                  <button
+                    className={previewMode === 'preview' ? 'active' : ''}
+                    onClick={() => setPreviewMode('preview')}
+                  >
+                    预览
+                  </button>
                   <button
                     className={previewMode === 'source' ? 'active' : ''}
                     onClick={() => setPreviewMode('source')}
@@ -288,7 +452,9 @@ export function MarkTexPanel(props: MarkTexPanelProps) {
             </div>
 
             <div className="preview-body">
-              {previewMode === 'source' ? (
+              {previewMode === 'preview' ? (
+                <div className="markdown-preview">{renderMarkdownPreview()}</div>
+              ) : previewMode === 'source' ? (
                 <pre className="latex-source">{latexOutput}</pre>
               ) : (
                 <div className="pdf-preview-container">

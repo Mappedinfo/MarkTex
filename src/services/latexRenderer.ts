@@ -6,6 +6,7 @@ import MarkdownIt from 'markdown-it';
 import type { LatexRenderResult, TableConfig } from '../types';
 import { escapeLaTeX, hasChinese } from '../utils/latexEscape';
 import { TableProcessor } from './tableProcessor';
+import { wikilinkPlugin, WIKI_LINK_NODE } from '../plugins/wikilink';
 
 // 使用any代替Token类型以避免TypeScript类型错误
 type Token = any;
@@ -20,6 +21,7 @@ export class LatexRenderer {
     hasTables: boolean;
     hasCode: boolean;
     hasMath: boolean;
+    hasWikiLinks: boolean;
   };
   // 数学公式占位符缓存
   private mathPlaceholders: Map<string, string>;
@@ -32,6 +34,9 @@ export class LatexRenderer {
       linkify: true,
     });
 
+    // 添加 wiki-link 插件
+    this.md.use(wikilinkPlugin);
+
     this.tableProcessor = new TableProcessor(tableConfig);
     this.packages = new Set();
     this.mathPlaceholders = new Map();
@@ -41,6 +46,7 @@ export class LatexRenderer {
       hasTables: false,
       hasCode: false,
       hasMath: false,
+      hasWikiLinks: false,
     };
   }
 
@@ -57,6 +63,7 @@ export class LatexRenderer {
       hasTables: false,
       hasCode: false,
       hasMath: false,
+      hasWikiLinks: false,
     };
 
     // 检测中文
@@ -225,6 +232,19 @@ export class LatexRenderer {
           break;
         case 's_close':
           break;
+        case WIKI_LINK_NODE: {
+          this.flags.hasWikiLinks = true;
+          const { displayText, target, type } = child.meta || {};
+          if (type === 'node') {
+            result.push(`\\noderef{${escapeLaTeX(displayText || '')}}{${escapeLaTeX(target || '')}}`);
+          } else if (type === 'relation') {
+            result.push(`\\reltype{${escapeLaTeX(target || displayText || '')}}`);
+          } else {
+            // unknown 类型保留原始语法
+            result.push(`[[${escapeLaTeX(displayText || '')}${target ? '|' + escapeLaTeX(target) : ''}]]`);
+          }
+          break;
+        }
         default:
           if (child.content) {
             result.push(escapeLaTeX(child.content, false)); // 不再在这里处理数学公式

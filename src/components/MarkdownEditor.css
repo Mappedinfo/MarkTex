@@ -1,13 +1,15 @@
-.markdown-editor,
-.latex-preview {
+/* MarkdownEditor & LaTeX Preview Styles - 作用域限定在 .marktex-panel 内 */
+
+.marktex-panel .markdown-editor,
+.marktex-panel .latex-preview {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-width: 0;
 }
 
-.editor-header,
-.preview-header {
+.marktex-panel .editor-header,
+.marktex-panel .preview-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -16,29 +18,21 @@
   border-bottom: 1px solid #e2e8f0;
 }
 
-.editor-header h2,
-.preview-header h2 {
+.marktex-panel .editor-header h2,
+.marktex-panel .preview-header h2 {
   font-size: 1rem;
   font-weight: 600;
   margin: 0;
 }
 
-.editor-info,
-.preview-info {
+.marktex-panel .editor-info,
+.marktex-panel .preview-info {
   font-size: 0.75rem;
   color: #64748b;
 }
 
 /* 字数统计样式 */
-.editor-stats {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  color: #64748b;
-}
-
-.stat-item {
+.marktex-panel .stat-item {
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.5rem;
@@ -49,32 +43,26 @@
   transition: all 0.2s;
 }
 
-.stat-item:hover {
+.marktex-panel .stat-item:hover {
   background: #e2e8f0;
   color: #475569;
 }
 
-.stat-separator {
+.marktex-panel .stat-separator {
   color: #cbd5e1;
   font-weight: 300;
 }
 
-.editor-body,
-.preview-body {
-  flex: 1;
-  overflow: auto;
-}
-
-.cm-editor {
+.marktex-panel .cm-editor {
   height: 100%;
   font-size: 14px;
 }
 
-.cm-scroller {
+.marktex-panel .cm-scroller {
   overflow: auto;
 }
 
-.preview-body pre {
+.marktex-panel .preview-body pre {
   margin: 0;
   padding: 1rem;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
@@ -85,20 +73,13 @@
 }
 
 /* 预览模式切换 */
-.preview-actions {
+.marktex-panel .preview-actions {
   display: flex;
   align-items: center;
   gap: 1rem;
 }
 
-.preview-mode-toggle {
-  display: flex;
-  background: #e2e8f0;
-  border-radius: 0.375rem;
-  padding: 0.125rem;
-}
-
-.mode-btn {
+.marktex-panel .mode-btn {
   padding: 0.375rem 0.75rem;
   font-size: 0.875rem;
   background: transparent;
@@ -110,137 +91,30 @@
   font-weight: 500;
 }
 
-.mode-btn:hover {
+.marktex-panel .mode-btn:hover {
   color: #1e293b;
 }
 
-.mode-btn.active {
+.marktex-panel .mode-btn.active {
   background: white;
   color: #2563eb;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-/* 编译错误显示 */
-.compile-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-left: 4px solid #ef4444;
-  padding: 0.75rem 1rem;
-  margin: 0.5rem 1rem;
-  border-radius: 0.375rem;
+.marktex-panel .mode-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.error-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  color: #991b1b;
-}
-
-.error-icon {
-  font-size: 1.25rem;
-}
-
-.error-content {
-  margin: 0;
-  padding: 0.5rem;
-  background: white;
-  border: 1px solid #fecaca;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  color: #991b1b;
-  overflow-x: auto;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-/* PDF 预览占位 */
-.pdf-preview-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  background: #f8fafc;
-}
-
-.placeholder-content {
-  text-align: center;
-  padding: 2rem;
-  max-width: 500px;
-}
-
-.placeholder-content h3 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  color: #1e293b;
-}
-
-.placeholder-content p {
+.marktex-panel .mode-btn:disabled:hover {
   color: #64748b;
-  margin-bottom: 0.75rem;
-  line-height: 1.6;
+  background: transparent;
 }
 
-.placeholder-content .hint {
-  font-size: 0.875rem;
-  color: #94a3b8;
-}
-
-.online-compilers {
-  margin-top: 2rem;
-  text-align: left;
-  padding: 1rem;
-  background: white;
-  border-radius: 0.5rem;
-  border: 1px solid #e2e8f0;
-}
-
-.online-compilers h4 {
-  font-size: 0.875rem;
-  margin-bottom: 0.75rem;
-  color: #475569;
-}
-
-.online-compilers ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.online-compilers li {
-  margin-bottom: 0.5rem;
-}
-
-.online-compilers a {
-  color: #2563eb;
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 0.875rem;
-}
-
-.online-compilers a:hover {
-  text-decoration: underline;
-}
-
-/* PDF 预览容器 */
-.pdf-preview-container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.pdf-toolbar {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.btn-refresh,
-.btn-download-pdf,
-.btn-compile {
+/* PDF 按钮样式 */
+.marktex-panel .btn-refresh,
+.marktex-panel .btn-download-pdf,
+.marktex-panel .btn-compile {
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   font-weight: 500;
@@ -256,14 +130,14 @@
   gap: 0.25rem;
 }
 
-.btn-refresh:hover,
-.btn-download-pdf:hover,
-.btn-compile:hover {
+.marktex-panel .btn-refresh:hover,
+.marktex-panel .btn-download-pdf:hover,
+.marktex-panel .btn-compile:hover {
   background: #f1f5f9;
   border-color: #cbd5e1;
 }
 
-.btn-compile {
+.marktex-panel .btn-compile {
   background: #2563eb;
   color: white;
   border-color: #2563eb;
@@ -271,76 +145,110 @@
   font-size: 1rem;
 }
 
-.btn-compile:hover {
+.marktex-panel .btn-compile:hover {
   background: #1d4ed8;
   border-color: #1d4ed8;
 }
 
-.pdf-iframe {
-  flex: 1;
-  border: none;
-  width: 100%;
+/* Markdown 预览样式 */
+.marktex-panel .markdown-preview {
+  padding: 1rem;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #333;
+  overflow: auto;
   height: 100%;
+  background: #fff;
 }
 
-/* 加载动画 */
-.loading-spinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid #e2e8f0;
-  border-top-color: #2563eb;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
+.marktex-panel .markdown-preview h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e8e8e8;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+.marktex-panel .markdown-preview h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.75rem 0;
 }
 
-.placeholder-content code {
-  display: block;
-  padding: 0.5rem 1rem;
-  background: #1e293b;
-  color: #e2e8f0;
-  border-radius: 0.375rem;
+.marktex-panel .markdown-preview h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem 0;
+}
+
+.marktex-panel .markdown-preview p {
+  margin: 0.75rem 0;
+}
+
+.marktex-panel .markdown-preview li {
+  margin: 0.25rem 0;
+}
+
+.marktex-panel .markdown-preview code {
+  background: #f5f5f5;
+  padding: 0.125rem 0.25rem;
+  border-radius: 3px;
   font-family: 'Monaco', 'Menlo', monospace;
-  font-size: 0.875rem;
-  margin: 1rem 0;
+  font-size: 0.9em;
 }
 
-/* 禁用按钮样式 */
-.mode-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.marktex-panel .markdown-preview pre {
+  background: #f5f5f5;
+  padding: 0.75rem;
+  border-radius: 4px;
+  overflow-x: auto;
 }
 
-.mode-btn:disabled:hover {
-  color: #64748b;
-  background: transparent;
-}
-
-/* 进度条样式 */
-.progress-bar {
-  width: 100%;
-  height: 4px;
-  background: #e0e0e0;
-  border-radius: 2px;
-  margin-top: 1rem;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #4CAF50, #8BC34A);
-  transition: width 0.3s ease;
-  border-radius: 2px;
-}
-
-/* 引擎状态指示器 */
-.engine-status {
+.marktex-panel .markdown-preview blockquote {
+  border-left: 3px solid #ddd;
+  margin: 0.75rem 0;
+  padding-left: 1rem;
   color: #666;
-  font-size: 0.9rem;
+}
+
+/* Wiki-link 样式 */
+.marktex-panel .wikilink-node,
+.marktex-panel .wikilink-relation {
+  transition: all 0.2s;
+}
+
+.marktex-panel .wikilink-node:hover,
+.marktex-panel .wikilink-relation:hover {
+  opacity: 0.8;
+}
+
+.marktex-panel .wikilink-unknown {
+  color: #999;
+  font-style: italic;
+}
+
+/* 工具栏标题输入框 */
+.marktex-panel .toolbar-title-input {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  width: 150px;
+}
+
+.marktex-panel .toolbar-title-input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+/* 保存按钮 */
+.marktex-panel .btn-save {
+  background: #22c55e;
+  color: white;
+  border-color: #22c55e;
+}
+
+.marktex-panel .btn-save:hover {
+  background: #16a34a;
+  border-color: #16a34a;
 }
