@@ -1,26 +1,28 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "types": ["vite/client"],
+    "types": ["node"],
     "skipLibCheck": true,
-
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
-    "jsx": "react-jsx",
-
-    /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
-  "exclude": ["src/obsidian", "tests"]
+  "include": [
+    "src/headless/**/*.ts",
+    "src/obsidian/**/*.ts",
+    "src/services/documentGenerator.ts",
+    "src/services/latexRenderer.ts",
+    "src/services/tableProcessor.ts",
+    "src/types/**/*.ts",
+    "src/utils/**/*.ts",
+    "src/plugins/**/*.ts"
+  ]
 }

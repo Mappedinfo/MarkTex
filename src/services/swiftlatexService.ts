@@ -148,7 +148,7 @@ export class SwiftLaTeXService {
     });
 
     // 加载 XeTeX 引擎
-    const xetexPromise = new Promise((resolve, reject) => {
+    const xetexPromise = new Promise((resolve) => {
       const script = document.createElement('script');
       script.src = `${this.basePath}/SwiftLaTeX-20022022/xetex.wasm/XeTeXEngine.js`;
       script.async = true;
