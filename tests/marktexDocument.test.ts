@@ -45,14 +45,45 @@ test('generateLatexDocument reports missing bibliography without swallowing cite
   assert.match(result.diagnostics.map((diagnostic) => diagnostic.code).join(','), /missing-bibliography/);
 });
 
-function configFixture(): AppConfig {
+test('generateLatexDocument can use local TeX Live Fandol fonts for CJK output', () => {
+  const result = generateLatexDocument('中文测试', {
+    config: configFixture({ enableChinese: true }),
+    cjkFontPath: '/usr/local/texlive/2025basic/texmf-dist/fonts/opentype/public/fandol'
+  });
+
+  assert.doesNotMatch(result.tex, /Noto Sans CJK SC/);
+  assert.match(result.tex, /FandolSong-Regular/);
+  assert.match(result.tex, /Path=\{\/usr\/local\/texlive\/2025basic\/texmf-dist\/fonts\/opentype\/public\/fandol\/\}/);
+});
+
+test('generateLatexDocument renders Obsidian wikilinks as display text before table conversion', () => {
+  const result = generateLatexDocument('| Paper | Status |\n|---|---|\n| [[Clippings/example.md|Readable Paper]] | ok |', {
+    config: configFixture()
+  });
+
+  assert.match(result.tex, /Readable Paper/);
+  assert.doesNotMatch(result.tex, /\[\[Clippings/);
+  assert.doesNotMatch(result.tex, /example\.md\|Readable Paper/);
+});
+
+test('generateLatexDocument downgrades unsupported code fence languages for listings', () => {
+  const result = generateLatexDocument('```mermaid\nflowchart TD\n  A --> B\n```', {
+    config: configFixture()
+  });
+
+  assert.match(result.tex, /\\begin\{lstlisting\}\nflowchart TD/);
+  assert.doesNotMatch(result.tex, /language=mermaid/);
+});
+
+function configFixture(overrides: Partial<AppConfig['document']> = {}): AppConfig {
   return {
     document: {
       documentClass: 'article',
       fontSize: '11pt',
       pageSize: 'a4paper',
       enableChinese: false,
-      enableTOC: false
+      enableTOC: false,
+      ...overrides
     },
     table: {
       tableStyle: 'booktabs',

@@ -34,7 +34,7 @@ export {
 } from './plugins/wikilink';
 
 // 服务
-export { generateLatexDocument, parsePandocCitekeys, preprocessPandocCitations } from './headless/marktexDocument';
+export { generateLatexDocument, parsePandocCitekeys, preprocessObsidianWikilinks, preprocessPandocCitations } from './headless/marktexDocument';
 export type { MarkTexDiagnostic, MarkTexDiagnosticLevel, MarkTexDocumentOptions, MarkTexDocumentResult } from './headless/marktexDocument';
 export { LatexRenderer } from './services/latexRenderer';
 export { DocumentGenerator } from './services/documentGenerator';

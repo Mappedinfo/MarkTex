@@ -14,6 +14,7 @@ export interface MarkTexDocumentOptions {
   config: AppConfig;
   bibliographyFiles?: string[];
   enableBiblatexApa?: boolean;
+  cjkFontPath?: string | null;
 }
 
 export interface MarkTexDocumentResult {
@@ -29,13 +30,17 @@ interface CitationPreprocessResult {
 }
 
 export function generateLatexDocument(markdown: string, options: MarkTexDocumentOptions): MarkTexDocumentResult {
-  const citationState = preprocessPandocCitations(markdown);
+  const normalizedMarkdown = preprocessObsidianWikilinks(markdown);
+  const citationState = preprocessPandocCitations(normalizedMarkdown);
   const renderer = new LatexRenderer(options.config.table);
   const documentGenerator = new DocumentGenerator();
   const renderResult = renderer.render(citationState.markdown);
   renderResult.content = restoreCitationPlaceholders(renderResult.content, citationState.replacements);
 
   let tex = documentGenerator.generate(renderResult, options.config.document, true);
+  if (options.cjkFontPath) {
+    tex = injectLocalCjkFonts(tex, options.cjkFontPath);
+  }
   const diagnostics: MarkTexDiagnostic[] = [];
   const bibliographyFiles = uniqueStrings(options.bibliographyFiles ?? []);
   const hasCitations = citationState.citekeys.length > 0;
@@ -90,6 +95,24 @@ export function preprocessPandocCitations(markdown: string): CitationPreprocessR
   };
 }
 
+export function preprocessObsidianWikilinks(markdown: string): string {
+  let inFence = false;
+  const lines = markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  return lines
+    .map((line) => {
+      if (/^\s*```/.test(line)) {
+        inFence = !inFence;
+        return line;
+      }
+      if (inFence) return line;
+
+      return replaceOutsideInlineCode(line, (part) =>
+        part.replace(/(^|[^!])\[\[([^\]]+)\]\]/g, (_raw, prefix: string, target: string) => `${prefix}${wikilinkLabel(target)}`)
+      );
+    })
+    .join('\n');
+}
+
 export function parsePandocCitekeys(markup: string): string[] {
   const content = markup.replace(/^\[/, '').replace(/\]$/, '');
   const keys: string[] = [];
@@ -102,13 +125,26 @@ export function parsePandocCitekeys(markup: string): string[] {
 }
 
 function replaceCitationsOutsideInlineCode(line: string, replacer: (raw: string) => string): string {
+  return replaceOutsideInlineCode(line, (part) => part.replace(/\[((?:[^\[\]]*@[\s\S]*?))\]/g, (raw) => replacer(raw)));
+}
+
+function replaceOutsideInlineCode(line: string, replacer: (part: string) => string): string {
   const parts = line.split(/(`+[^`]*`+)/g);
   return parts
     .map((part) => {
       if (/^`/.test(part)) return part;
-      return part.replace(/\[((?:[^\[\]]*@[\s\S]*?))\]/g, (raw) => replacer(raw));
+      return replacer(part);
     })
     .join('');
+}
+
+function wikilinkLabel(target: string): string {
+  const [pathPart, aliasPart] = target.split('|');
+  const alias = aliasPart?.trim();
+  if (alias) return alias;
+  const pathWithoutAnchor = pathPart.trim().split('#')[0];
+  const name = pathWithoutAnchor.slice(pathWithoutAnchor.lastIndexOf('/') + 1);
+  return name.replace(/\.[^.]+$/, '') || pathPart.trim();
 }
 
 function restoreCitationPlaceholders(content: string, replacements: Map<string, string>): string {
@@ -129,6 +165,25 @@ function injectBiblatexApa(tex: string, bibliographyFiles: string[]): string {
     next = next.replace('\\end{document}', '\\printbibliography\n\n\\end{document}');
   }
   return next;
+}
+
+function injectLocalCjkFonts(tex: string, fontPath: string): string {
+  const normalizedPath = fontPath.replace(/\\/g, '/').replace(/\/?$/, '/');
+  return tex
+    .replace('% 使用 Overleaf 系统字体,如果编译失败请改为其他中文字体', '% 使用 TeX Live Fandol 字体进行本机 XeLaTeX 编译')
+    .replace('% 可选字体: Noto Sans CJK SC, Source Han Sans SC, SimSun, FandolSong', '% 字体路径由 MarkTex 自动探测')
+    .replace(
+      '\\setCJKmainfont{Noto Sans CJK SC}',
+      `\\setCJKmainfont[Path={${normalizedPath}},Extension=.otf,UprightFont=FandolSong-Regular,BoldFont=FandolSong-Bold,ItalicFont=FandolKai-Regular]{FandolSong}`
+    )
+    .replace(
+      '\\setCJKsansfont{Noto Sans CJK SC}',
+      `\\setCJKsansfont[Path={${normalizedPath}},Extension=.otf,UprightFont=FandolHei-Regular,BoldFont=FandolHei-Regular]{FandolHei}`
+    )
+    .replace(
+      '\\setCJKmonofont{Noto Sans CJK SC}',
+      `\\setCJKmonofont[Path={${normalizedPath}},Extension=.otf,UprightFont=FandolFang-Regular]{FandolFang}`
+    );
 }
 
 function escapeLatexPath(path: string): string {

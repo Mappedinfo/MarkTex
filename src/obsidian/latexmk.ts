@@ -1,4 +1,4 @@
-import { spawn as nodeSpawn } from 'node:child_process';
+import { execFileSync, spawn as nodeSpawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
@@ -23,6 +23,30 @@ export function detectLatexmkPath(configuredPath?: string): string {
   return 'latexmk';
 }
 
+export function detectFandolFontPath(configuredLatexmkPath?: string): string | null {
+  const latexmkPath = detectLatexmkPath(configuredLatexmkPath);
+  const candidates = uniqueStrings([
+    path.isAbsolute(latexmkPath) ? path.join(path.dirname(latexmkPath), 'kpsewhich') : '',
+    '/Library/TeX/texbin/kpsewhich',
+    'kpsewhich'
+  ]);
+
+  for (const candidate of candidates) {
+    try {
+      if (path.isAbsolute(candidate) && !existsSync(candidate)) continue;
+      const output = execFileSync(candidate, ['FandolSong-Regular.otf'], {
+        encoding: 'utf8',
+        env: { ...process.env, PATH: addTexPath(process.env.PATH || '') },
+        timeout: 5000
+      }).trim();
+      if (output && existsSync(output)) return path.dirname(output);
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
 export async function runLatexmkBuild(
   buildDir: string,
   latexmkPath: string,
@@ -39,11 +63,11 @@ export async function runLatexmkBuild(
     let stdout = '';
     let stderr = '';
     let settled = false;
-    const child = spawn(latexmkPath, args, { cwd: buildDir, env });
+    const child = spawn(latexmkPath, args, { cwd: buildDir, env, detached: true });
     const timeout = globalThis.setTimeout(() => {
       if (settled) return;
       settled = true;
-      child.kill?.('SIGTERM');
+      terminateProcessTree(child);
       resolve({
         ok: false,
         exitCode: null,
@@ -99,4 +123,27 @@ function addTexPath(pathValue: string): string {
 
 function defaultSpawn(command: string, args: string[], options: Record<string, unknown>) {
   return nodeSpawn(command, args, options);
+}
+
+function terminateProcessTree(child: { pid?: number; kill?: (signal?: NodeJS.Signals) => boolean }): void {
+  if (typeof child.pid === 'number') {
+    try {
+      process.kill(-child.pid, 'SIGTERM');
+      return;
+    } catch {
+      // Fall through to killing the direct process when process-group signaling is unavailable.
+    }
+  }
+  child.kill?.('SIGTERM');
+}
+
+function uniqueStrings(values: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    result.push(value);
+  }
+  return result;
 }

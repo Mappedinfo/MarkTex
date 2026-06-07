@@ -11,6 +11,22 @@ import { wikilinkPlugin, WIKI_LINK_NODE } from '../plugins/wikilink';
 // 使用any代替Token类型以避免TypeScript类型错误
 type Token = any;
 
+const LISTINGS_LANGUAGE_MAP: Record<string, string> = {
+  c: 'C',
+  cpp: 'C++',
+  'c++': 'C++',
+  html: 'HTML',
+  java: 'Java',
+  javascript: 'JavaScript',
+  js: 'JavaScript',
+  latex: 'TeX',
+  python: 'Python',
+  py: 'Python',
+  sql: 'SQL',
+  tex: 'TeX',
+  xml: 'XML'
+};
+
 export class LatexRenderer {
   private md: MarkdownIt;
   private tableProcessor: TableProcessor;
@@ -394,7 +410,7 @@ export class LatexRenderer {
     this.packages.add('listings');
     this.packages.add('xcolor');
 
-    const lang = token.info || '';
+    const lang = listingsLanguage(token.info || '');
     const code = token.content;
 
     if (lang) {
@@ -497,4 +513,9 @@ export class LatexRenderer {
   updateTableConfig(config: Partial<TableConfig>): void {
     this.tableProcessor.updateConfig(config);
   }
+}
+
+function listingsLanguage(info: string): string {
+  const language = info.trim().split(/\s+/)[0]?.toLowerCase() || '';
+  return LISTINGS_LANGUAGE_MAP[language] || '';
 }

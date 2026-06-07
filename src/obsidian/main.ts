@@ -12,7 +12,7 @@ import {
 } from 'obsidian';
 import { generateLatexDocument, type MarkTexDiagnostic } from '../headless/marktexDocument';
 import type { AppConfig } from '../types';
-import { detectLatexmkPath, runLatexmkBuild, type LatexmkBuildResult } from './latexmk';
+import { detectFandolFontPath, detectLatexmkPath, runLatexmkBuild, type LatexmkBuildResult } from './latexmk';
 
 declare const require: (id: string) => any;
 
@@ -39,6 +39,7 @@ interface WorkbenchState {
   buildVaultDir: string;
   pdfVaultPath: string | null;
   logVaultPath: string | null;
+  logExcerpt: string;
   status: string;
   compiling: boolean;
   lastBuild?: LatexmkBuildResult;
@@ -182,7 +183,8 @@ export default class MarkTexObsidianPlugin extends Plugin {
     const result = generateLatexDocument(prepared.markdown, {
       config: this.markTexConfig(),
       bibliographyFiles: bibliography ? ['references.bib'] : [],
-      enableBiblatexApa: true
+      enableBiblatexApa: true,
+      cjkFontPath: this.settings.enableChinese ? detectFandolFontPath(this.settings.latexmkPath) : null
     });
 
     this.state = {
@@ -197,6 +199,7 @@ export default class MarkTexObsidianPlugin extends Plugin {
       buildVaultDir,
       pdfVaultPath: this.state.file?.path === file.path ? this.state.pdfVaultPath : null,
       logVaultPath: this.state.file?.path === file.path ? this.state.logVaultPath : null,
+      logExcerpt: this.state.file?.path === file.path ? this.state.logExcerpt : '',
       status: `LaTeX 已更新：${file.path}`,
       compiling: this.state.compiling
     };
@@ -229,22 +232,27 @@ export default class MarkTexObsidianPlugin extends Plugin {
       const build = await this.prepareBuild(file);
       const latexmkPath = detectLatexmkPath(this.settings.latexmkPath);
       const result = await runLatexmkBuild(build.absoluteDir, latexmkPath);
+      const logVaultPath = normalizePath(`${build.vaultDir}/main.log`);
+      const logExcerpt = result.ok ? '' : await readLogExcerpt(this.app, logVaultPath);
       this.state = {
         ...this.state,
         file,
         compiling: false,
         buildVaultDir: build.vaultDir,
         pdfVaultPath: result.ok ? normalizePath(`${build.vaultDir}/main.pdf`) : null,
-        logVaultPath: normalizePath(`${build.vaultDir}/main.log`),
+        logVaultPath,
+        logExcerpt,
         status: result.ok ? 'PDF 编译完成。' : `PDF 编译失败：${result.error || 'latexmk failed'}`,
         lastBuild: result
       };
       if (notify) new Notice(this.state.status);
     } catch (error) {
+      const logExcerpt = this.state.logVaultPath ? await readLogExcerpt(this.app, this.state.logVaultPath) : '';
       this.state = {
         ...this.state,
         file,
         compiling: false,
+        logExcerpt,
         status: `PDF 编译失败：${error instanceof Error ? error.message : String(error)}`
       };
       if (notify) new Notice(this.state.status);
@@ -261,7 +269,8 @@ export default class MarkTexObsidianPlugin extends Plugin {
     const result = generateLatexDocument(prepared.markdown, {
       config: this.markTexConfig(),
       bibliographyFiles: bibliography ? ['references.bib'] : [],
-      enableBiblatexApa: true
+      enableBiblatexApa: true,
+      cjkFontPath: this.settings.enableChinese ? detectFandolFontPath(this.settings.latexmkPath) : null
     });
     await this.app.vault.adapter.write(normalizePath(`${vaultDir}/main.tex`), result.tex);
     if (bibliography) {
@@ -276,7 +285,8 @@ export default class MarkTexObsidianPlugin extends Plugin {
         ...prepared.diagnostics,
         ...(bibliography ? [] : bibliographyMissingDiagnostics(result.citekeys))
       ],
-      buildVaultDir: vaultDir
+      buildVaultDir: vaultDir,
+      logExcerpt: ''
     };
     const absoluteDir = vaultPathToAbsolute(this.app, vaultDir);
     if (!absoluteDir) throw new Error('当前 vault adapter 不支持本机路径，无法运行 latexmk。');
@@ -372,6 +382,9 @@ class MarkTexWorkbenchView extends ItemView {
     if (state.pdfVaultPath) {
       const iframe = pdfPane.createEl('iframe', { cls: 'marktex-pdf-frame' });
       iframe.src = getResourcePath(this.app, state.pdfVaultPath);
+    } else if (state.logExcerpt) {
+      pdfPane.createEl('p', { cls: 'marktex-empty-pdf', text: `PDF 编译失败。Log: ${state.logVaultPath || 'main.log'}` });
+      pdfPane.createEl('pre', { cls: 'marktex-log-excerpt', text: state.logExcerpt });
     } else if (state.logVaultPath) {
       pdfPane.createEl('p', { cls: 'marktex-empty-pdf', text: `暂无 PDF。Log: ${state.logVaultPath}` });
     } else {
@@ -569,9 +582,44 @@ function emptyState(): WorkbenchState {
     buildVaultDir: '',
     pdfVaultPath: null,
     logVaultPath: null,
+    logExcerpt: '',
     status: 'Ready.',
     compiling: false
   };
+}
+
+async function readLogExcerpt(app: App, logVaultPath: string): Promise<string> {
+  try {
+    if (!(await app.vault.adapter.exists(logVaultPath))) return '';
+    const log = await app.vault.adapter.read(logVaultPath);
+    return summarizeLatexLog(log);
+  } catch {
+    return '';
+  }
+}
+
+function summarizeLatexLog(log: string): string {
+  const lines = log.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const ranges: Array<[number, number]> = [];
+  const errorPattern = /(^! |^[./\\\w-]*main\.tex:\d+:|Package .* Error|LaTeX Error|Fatal error|Emergency stop|cannot be found|Undefined control sequence|Missing .* inserted)/i;
+  for (let index = 0; index < lines.length; index += 1) {
+    if (errorPattern.test(lines[index])) {
+      ranges.push([Math.max(0, index - 2), Math.min(lines.length, index + 8)]);
+    }
+  }
+  if (ranges.length === 0) return lines.slice(-30).join('\n').trim();
+
+  const selected: string[] = [];
+  let previousEnd = -1;
+  for (const [start, end] of ranges.slice(0, 4)) {
+    if (start > previousEnd && selected.length > 0) selected.push('...');
+    for (let index = Math.max(start, previousEnd); index < end; index += 1) {
+      selected.push(lines[index]);
+    }
+    previousEnd = Math.max(previousEnd, end);
+  }
+  const excerpt = selected.join('\n').trim();
+  return excerpt.length > 5000 ? `${excerpt.slice(0, 5000)}\n...` : excerpt;
 }
 
 function vaultPathToAbsolute(app: App, vaultPath: string): string | null {
