@@ -98,6 +98,11 @@ export default class MarkTexObsidianPlugin extends Plugin {
       name: 'Reveal MarkTex Build Folder',
       callback: () => this.revealBuildFolder()
     });
+    this.addCommand({
+      id: 'open-current-marktex-pdf',
+      name: 'Open Current MarkTex PDF',
+      callback: () => this.openGeneratedPdf()
+    });
 
     this.registerEvent(this.app.workspace.on('active-leaf-change', () => this.schedulePreviewRefresh()));
     this.registerEvent(
@@ -169,6 +174,19 @@ export default class MarkTexObsidianPlugin extends Plugin {
       return;
     }
     new Notice(this.state.buildVaultDir || '还没有 MarkTex build folder。');
+  }
+
+  async openGeneratedPdf(): Promise<void> {
+    if (!this.state.pdfVaultPath) {
+      new Notice('还没有可打开的 MarkTex PDF。');
+      return;
+    }
+    const file = this.app.vault.getAbstractFileByPath(this.state.pdfVaultPath);
+    if (!(file instanceof TFile)) {
+      new Notice(`找不到 MarkTex PDF：${this.state.pdfVaultPath}`);
+      return;
+    }
+    await this.app.workspace.getLeaf('tab').openFile(file);
   }
 
   getState(): WorkbenchState {
@@ -446,8 +464,11 @@ class MarkTexWorkbenchView extends ItemView {
     const pdfPane = panes.createEl('section', { cls: 'marktex-pane marktex-pdf-pane' });
     pdfPane.createEl('h4', { text: 'PDF' });
     if (state.pdfVaultPath) {
-      const iframe = pdfPane.createEl('iframe', { cls: 'marktex-pdf-frame' });
-      iframe.src = getResourcePath(this.app, state.pdfVaultPath);
+      const ready = pdfPane.createEl('div', { cls: 'marktex-pdf-ready' });
+      ready.createEl('p', { text: `PDF 已生成：${state.pdfVaultPath}` });
+      const actions = ready.createEl('div', { cls: 'marktex-pdf-actions' });
+      this.addButton(actions, 'Open PDF', () => this.plugin.openGeneratedPdf());
+      this.addButton(actions, 'Reveal Build', () => this.plugin.revealBuildFolder());
     } else if (state.logExcerpt) {
       pdfPane.createEl('p', { cls: 'marktex-empty-pdf', text: `PDF 编译失败。Log: ${state.logVaultPath || 'main.log'}` });
       pdfPane.createEl('pre', { cls: 'marktex-log-excerpt', text: state.logExcerpt });
@@ -720,11 +741,6 @@ function vaultPathToAbsolute(app: App, vaultPath: string): string | null {
   if (!basePath) return null;
   const path = require('node:path') as typeof import('node:path');
   return path.join(basePath, vaultPath);
-}
-
-function getResourcePath(app: App, vaultPath: string): string {
-  const adapter = app.vault.adapter as unknown as { getResourcePath?: (path: string) => string };
-  return adapter.getResourcePath?.(vaultPath) || vaultPath;
 }
 
 function getElectronShell(): { openPath: (path: string) => Promise<string> } | null {

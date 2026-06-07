@@ -160,12 +160,31 @@
   width: 100%;
 }
 
-.marktex-pdf-frame {
+.marktex-pdf-ready {
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
-  flex: 1;
-  min-height: 0;
-  width: 100%;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  padding: 10px;
+}
+
+.marktex-pdf-ready p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.marktex-pdf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 8px;
+}
+
+.marktex-pdf-actions button {
+  font-size: var(--font-ui-smaller);
+  min-height: 24px;
+  padding: 2px 8px;
 }
 
 .marktex-empty-pdf {

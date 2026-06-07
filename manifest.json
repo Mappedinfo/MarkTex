@@ -1,7 +1,7 @@
 {
   "id": "marktex",
   "name": "MarkTex",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "minAppVersion": "1.5.0",
   "description": "Live Markdown to LaTeX preview and local latexmk PDF compilation.",
   "author": "mappedinfo",
