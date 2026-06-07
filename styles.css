@@ -40,6 +40,76 @@
   color: var(--text-accent);
 }
 
+.marktex-compile-progress {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+  padding: 8px 10px;
+}
+
+.marktex-progress-header {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.marktex-progress-label {
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+}
+
+.marktex-progress-percent {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+}
+
+.marktex-progress-track {
+  height: 6px;
+  overflow: hidden;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: var(--background-modifier-border);
+}
+
+.marktex-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--interactive-accent);
+  transition: width 160ms ease;
+}
+
+.marktex-compile-progress.is-error .marktex-progress-fill,
+.marktex-compile-progress.is-timeout .marktex-progress-fill {
+  background: var(--text-error);
+}
+
+.marktex-compile-progress.is-success .marktex-progress-fill {
+  background: var(--text-success);
+}
+
+.marktex-progress-detail {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  margin: 6px 0 0;
+}
+
+.marktex-progress-log {
+  max-height: 96px;
+  overflow: auto;
+  margin: 8px 0 0;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .marktex-diagnostics {
   border-left: 3px solid var(--background-modifier-border);
   color: var(--text-muted);

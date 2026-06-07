@@ -12,7 +12,13 @@ import {
 } from 'obsidian';
 import { generateLatexDocument, type MarkTexDiagnostic } from '../headless/marktexDocument';
 import type { AppConfig } from '../types';
-import { detectFandolFontPath, detectLatexmkPath, runLatexmkBuild, type LatexmkBuildResult } from './latexmk';
+import {
+  detectFandolFontPath,
+  detectLatexmkPath,
+  runLatexmkBuild,
+  type LatexmkBuildResult,
+  type LatexmkProgressEvent
+} from './latexmk';
 
 declare const require: (id: string) => any;
 
@@ -42,6 +48,8 @@ interface WorkbenchState {
   logExcerpt: string;
   status: string;
   compiling: boolean;
+  compileProgress: LatexmkProgressEvent | null;
+  recentLogLines: string[];
   lastBuild?: LatexmkBuildResult;
 }
 
@@ -200,8 +208,10 @@ export default class MarkTexObsidianPlugin extends Plugin {
       pdfVaultPath: this.state.file?.path === file.path ? this.state.pdfVaultPath : null,
       logVaultPath: this.state.file?.path === file.path ? this.state.logVaultPath : null,
       logExcerpt: this.state.file?.path === file.path ? this.state.logExcerpt : '',
+      compileProgress: this.state.file?.path === file.path ? this.state.compileProgress : null,
+      recentLogLines: this.state.file?.path === file.path ? this.state.recentLogLines : [],
       status: `LaTeX 已更新：${file.path}`,
-      compiling: this.state.compiling
+      compiling: this.state.file?.path === file.path ? this.state.compiling : false
     };
     await this.refreshViews();
   }
@@ -225,15 +235,43 @@ export default class MarkTexObsidianPlugin extends Plugin {
   }
 
   private async compileFile(file: TFile, notify: boolean): Promise<void> {
-    this.state = { ...this.state, file, compiling: true, status: 'MarkTex 正在编译 PDF...' };
+    this.state = {
+      ...this.state,
+      file,
+      compiling: true,
+      status: '正在准备 PDF 编译...',
+      compileProgress: {
+        stage: 'preparing',
+        percent: 3,
+        label: '准备编译',
+        detail: '正在生成 main.tex 和复制依赖文件。'
+      },
+      recentLogLines: [],
+      logExcerpt: ''
+    };
     await this.refreshViews();
 
     try {
       const build = await this.prepareBuild(file);
       const latexmkPath = detectLatexmkPath(this.settings.latexmkPath);
-      const result = await runLatexmkBuild(build.absoluteDir, latexmkPath);
+      const result = await runLatexmkBuild(build.absoluteDir, latexmkPath, {
+        onProgress: (event) => this.updateCompileProgress(file, event)
+      });
       const logVaultPath = normalizePath(`${build.vaultDir}/main.log`);
       const logExcerpt = result.ok ? '' : await readLogExcerpt(this.app, logVaultPath);
+      const finalProgress: LatexmkProgressEvent = result.ok
+        ? {
+            stage: 'success',
+            percent: 100,
+            label: 'PDF 编译完成',
+            detail: 'latexmk 已完成所有编译步骤。'
+          }
+        : {
+            stage: 'error',
+            percent: 100,
+            label: 'PDF 编译失败',
+            detail: result.error || 'latexmk failed'
+          };
       this.state = {
         ...this.state,
         file,
@@ -242,22 +280,45 @@ export default class MarkTexObsidianPlugin extends Plugin {
         pdfVaultPath: result.ok ? normalizePath(`${build.vaultDir}/main.pdf`) : null,
         logVaultPath,
         logExcerpt,
-        status: result.ok ? 'PDF 编译完成。' : `PDF 编译失败：${result.error || 'latexmk failed'}`,
+        status: finalProgress.label,
+        compileProgress: finalProgress,
         lastBuild: result
       };
       if (notify) new Notice(this.state.status);
     } catch (error) {
       const logExcerpt = this.state.logVaultPath ? await readLogExcerpt(this.app, this.state.logVaultPath) : '';
+      const finalProgress: LatexmkProgressEvent = {
+        stage: 'error',
+        percent: 100,
+        label: 'PDF 编译失败',
+        detail: error instanceof Error ? error.message : String(error)
+      };
       this.state = {
         ...this.state,
         file,
         compiling: false,
         logExcerpt,
-        status: `PDF 编译失败：${error instanceof Error ? error.message : String(error)}`
+        status: finalProgress.label,
+        compileProgress: finalProgress
       };
       if (notify) new Notice(this.state.status);
     }
     await this.refreshViews();
+  }
+
+  private updateCompileProgress(file: TFile, progress: LatexmkProgressEvent): void {
+    const recentLogLines = progress.logLine
+      ? [...this.state.recentLogLines, progress.logLine].slice(-12)
+      : this.state.recentLogLines;
+    this.state = {
+      ...this.state,
+      file,
+      compiling: true,
+      status: `${progress.label}：${progress.detail}`,
+      compileProgress: progress,
+      recentLogLines
+    };
+    void this.refreshViews();
   }
 
   private async prepareBuild(file: TFile): Promise<{ vaultDir: string; absoluteDir: string }> {
@@ -286,7 +347,8 @@ export default class MarkTexObsidianPlugin extends Plugin {
         ...(bibliography ? [] : bibliographyMissingDiagnostics(result.citekeys))
       ],
       buildVaultDir: vaultDir,
-      logExcerpt: ''
+      logExcerpt: '',
+      recentLogLines: []
     };
     const absoluteDir = vaultPathToAbsolute(this.app, vaultDir);
     if (!absoluteDir) throw new Error('当前 vault adapter 不支持本机路径，无法运行 latexmk。');
@@ -360,6 +422,10 @@ class MarkTexWorkbenchView extends ItemView {
       text: state.status || 'Ready.'
     });
 
+    if (state.compileProgress) {
+      this.renderCompileProgress(state);
+    }
+
     if (state.diagnostics.length > 0) {
       const diagnostics = this.contentEl.createEl('div', { cls: 'marktex-diagnostics' });
       for (const diagnostic of state.diagnostics) {
@@ -389,6 +455,30 @@ class MarkTexWorkbenchView extends ItemView {
       pdfPane.createEl('p', { cls: 'marktex-empty-pdf', text: `暂无 PDF。Log: ${state.logVaultPath}` });
     } else {
       pdfPane.createEl('p', { cls: 'marktex-empty-pdf', text: '保存或点击 Compile 后显示 PDF。' });
+    }
+  }
+
+  private renderCompileProgress(state: WorkbenchState): void {
+    const progress = state.compileProgress;
+    if (!progress) return;
+
+    const container = this.contentEl.createEl('div', {
+      cls: `marktex-compile-progress is-${progress.stage}`
+    });
+    const header = container.createEl('div', { cls: 'marktex-progress-header' });
+    header.createEl('span', { cls: 'marktex-progress-label', text: progress.label });
+    header.createEl('span', { cls: 'marktex-progress-percent', text: `${progress.percent}%` });
+
+    const track = container.createEl('div', { cls: 'marktex-progress-track' });
+    const fill = track.createEl('div', { cls: 'marktex-progress-fill' });
+    fill.style.width = `${progress.percent}%`;
+
+    container.createEl('p', { cls: 'marktex-progress-detail', text: progress.detail });
+    if (state.recentLogLines.length > 0) {
+      container.createEl('pre', {
+        cls: 'marktex-progress-log',
+        text: state.recentLogLines.join('\n')
+      });
     }
   }
 
@@ -584,7 +674,9 @@ function emptyState(): WorkbenchState {
     logVaultPath: null,
     logExcerpt: '',
     status: 'Ready.',
-    compiling: false
+    compiling: false,
+    compileProgress: null,
+    recentLogLines: []
   };
 }
 

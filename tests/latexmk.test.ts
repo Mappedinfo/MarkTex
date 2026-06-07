@@ -24,6 +24,26 @@ test('runLatexmkBuild reports latexmk failures', async () => {
   assert.match(result.stderr, /badness/);
 });
 
+test('runLatexmkBuild emits granular progress from latexmk output', async () => {
+  const events: string[] = [];
+  const stdout = [
+    "Latexmk: applying rule 'xelatex'...",
+    "Run number 1 of rule 'xelatex'",
+    "Running 'biber main'",
+    "Running 'xdvipdfmx -o main.pdf main.xdv'"
+  ].join('\n');
+
+  await runLatexmkBuild('/tmp/marktex-build', 'latexmk', {
+    spawn: fakeSpawn(0, '', stdout),
+    onProgress: (event) => events.push(`${event.stage}:${event.label}`)
+  });
+
+  assert.ok(events.some((event) => event.includes('xelatex:XeLaTeX 第 1 轮')));
+  assert.ok(events.some((event) => event.includes('biber:处理参考文献')));
+  assert.ok(events.some((event) => event.includes('pdf:生成 PDF')));
+  assert.ok(events.some((event) => event.includes('success:PDF 编译完成')));
+});
+
 test('runLatexmkBuild terminates the latexmk process group on timeout', async () => {
   const originalKill = process.kill;
   let killedPid = 0;
@@ -48,7 +68,7 @@ test('runLatexmkBuild terminates the latexmk process group on timeout', async ()
   }
 });
 
-function fakeSpawn(code: number, stderr = '') {
+function fakeSpawn(code: number, stderr = '', stdout = '') {
   return () => {
     const child = new EventEmitter() as EventEmitter & {
       stdout: EventEmitter;
@@ -59,6 +79,7 @@ function fakeSpawn(code: number, stderr = '') {
     child.stderr = new EventEmitter();
     child.kill = () => {};
     setTimeout(() => {
+      if (stdout) child.stdout.emit('data', Buffer.from(stdout));
       if (stderr) child.stderr.emit('data', Buffer.from(stderr));
       child.emit('close', code);
     }, 0);
