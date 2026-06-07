@@ -1,9 +1,9 @@
 {
   "id": "marktex",
   "name": "MarkTex",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "minAppVersion": "1.5.0",
-  "description": "Live Markdown to LaTeX preview and local latexmk PDF compilation for Obsidian.",
+  "description": "Live Markdown to LaTeX preview and local latexmk PDF compilation.",
   "author": "mappedinfo",
   "authorUrl": "https://github.com/Mappedinfo",
   "isDesktopOnly": true

@@ -471,7 +471,7 @@ class MarkTexWorkbenchView extends ItemView {
 
     const track = container.createEl('div', { cls: 'marktex-progress-track' });
     const fill = track.createEl('div', { cls: 'marktex-progress-fill' });
-    fill.style.width = `${progress.percent}%`;
+    fill.setCssProps({ '--marktex-progress-width': `${progress.percent}%` });
 
     container.createEl('p', { cls: 'marktex-progress-detail', text: progress.detail });
     if (state.recentLogLines.length > 0) {

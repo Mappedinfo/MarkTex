@@ -8,14 +8,15 @@ export class ExportService {
    * 下载 LaTeX 文件
    */
   downloadLatex(content: string, filename = 'document.tex'): void {
+    const activeDoc = getActiveDocument();
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = activeDoc.createElement('a');
     link.href = url;
     link.download = filename;
-    document.body.appendChild(link);
+    activeDoc.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    activeDoc.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
 
@@ -29,14 +30,14 @@ export class ExportService {
         return true;
       } else {
         // 降级方案
-        const textarea = document.createElement('textarea');
+        const activeDoc = getActiveDocument();
+        const textarea = activeDoc.createElement('textarea');
         textarea.value = content;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
+        textarea.className = 'marktex-clipboard-proxy';
+        activeDoc.body.appendChild(textarea);
         textarea.select();
-        const success = document.execCommand('copy');
-        document.body.removeChild(textarea);
+        const success = activeDoc.execCommand('copy');
+        activeDoc.body.removeChild(textarea);
         return success;
       }
     } catch (error) {
@@ -44,4 +45,14 @@ export class ExportService {
       return false;
     }
   }
+}
+
+function getActiveDocument(): Document {
+  const globalDom = globalThis as typeof globalThis & {
+    activeDocument?: Document;
+    document?: Document;
+  };
+  const activeDoc = globalDom.activeDocument ?? globalDom.document;
+  if (!activeDoc) throw new Error('No active document is available.');
+  return activeDoc;
 }
