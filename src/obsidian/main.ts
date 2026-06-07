@@ -177,16 +177,31 @@ export default class MarkTexObsidianPlugin extends Plugin {
   }
 
   async openGeneratedPdf(): Promise<void> {
-    if (!this.state.pdfVaultPath) {
+    const pdfVaultPath = await this.resolveGeneratedPdfVaultPath();
+    if (!pdfVaultPath) {
       new Notice('还没有可打开的 MarkTex PDF。');
       return;
     }
-    const file = this.app.vault.getAbstractFileByPath(this.state.pdfVaultPath);
-    if (!(file instanceof TFile)) {
-      new Notice(`找不到 MarkTex PDF：${this.state.pdfVaultPath}`);
+
+    const file = this.app.vault.getAbstractFileByPath(pdfVaultPath);
+    if (file instanceof TFile) {
+      await this.app.workspace.getLeaf('tab').openFile(file);
       return;
     }
-    await this.app.workspace.getLeaf('tab').openFile(file);
+
+    const absolute = vaultPathToAbsolute(this.app, pdfVaultPath);
+    const shell = getElectronShell();
+    if (!absolute || !shell) {
+      new Notice(`PDF 已生成，但无法自动打开：${pdfVaultPath}`);
+      return;
+    }
+
+    const error = await shell.openPath(absolute);
+    if (error) {
+      new Notice(`打开 MarkTex PDF 失败：${error}`);
+      return;
+    }
+    new Notice('已打开 MarkTex PDF。');
   }
 
   getState(): WorkbenchState {
@@ -204,6 +219,14 @@ export default class MarkTexObsidianPlugin extends Plugin {
 
     const markdown = getActiveMarkdownText(this.app, file) ?? (await this.app.vault.cachedRead(file));
     const buildVaultDir = this.buildVaultDirForFile(file);
+    const existingPdfVaultPath = normalizePath(`${buildVaultDir}/main.pdf`);
+    const preservedPdfVaultPath = this.state.file?.path === file.path ? this.state.pdfVaultPath : null;
+    const pdfVaultPath =
+      preservedPdfVaultPath && (await this.app.vault.adapter.exists(preservedPdfVaultPath))
+        ? preservedPdfVaultPath
+        : (await this.app.vault.adapter.exists(existingPdfVaultPath))
+          ? existingPdfVaultPath
+          : null;
     const bibliography = await resolveMarkTexBibliography(file.path, this.app);
     const prepared = await prepareMarkdownAssets(markdown, file, this.app, buildVaultDir);
     const result = generateLatexDocument(prepared.markdown, {
@@ -223,7 +246,7 @@ export default class MarkTexObsidianPlugin extends Plugin {
         ...(bibliography ? [] : bibliographyMissingDiagnostics(result.citekeys))
       ],
       buildVaultDir,
-      pdfVaultPath: this.state.file?.path === file.path ? this.state.pdfVaultPath : null,
+      pdfVaultPath,
       logVaultPath: this.state.file?.path === file.path ? this.state.logVaultPath : null,
       logExcerpt: this.state.file?.path === file.path ? this.state.logExcerpt : '',
       compileProgress: this.state.file?.path === file.path ? this.state.compileProgress : null,
@@ -375,6 +398,19 @@ export default class MarkTexObsidianPlugin extends Plugin {
 
   private buildVaultDirForFile(file: TFile): string {
     return normalizePath(`${this.settings.buildRoot}/${hashPath(file.path)}`);
+  }
+
+  private async resolveGeneratedPdfVaultPath(): Promise<string | null> {
+    if (this.state.pdfVaultPath && (await this.app.vault.adapter.exists(this.state.pdfVaultPath))) {
+      return this.state.pdfVaultPath;
+    }
+    if (!this.state.buildVaultDir) await this.refreshPreviewState();
+    if (!this.state.buildVaultDir) return null;
+    const candidate = normalizePath(`${this.state.buildVaultDir}/main.pdf`);
+    if (!(await this.app.vault.adapter.exists(candidate))) return null;
+    this.state = { ...this.state, pdfVaultPath: candidate };
+    await this.refreshViews();
+    return candidate;
   }
 
   private markTexConfig(): AppConfig {
